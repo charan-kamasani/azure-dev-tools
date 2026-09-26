@@ -61,10 +61,13 @@ test("Cost Health package and customer README match the current catalog", () => 
   assert.equal(release.plugin.extension.entry,
     "com.github.copilot/extensions/azure-cost-health-check/extension.mjs");
   assert.match(readme, /install \*\*Azure Cost Health Check\*\*/);
+  assert.match(readme,
+    /\[listed \d+\.\d+\.\d+ package\]\(https:\/\/github\.com\/microsoft\/azure-dev-tools\/tree\/[0-9a-f]{40}\/canvases\/azure-cost-health-check\)/);
+  assert.match(readme, /is not this source candidate/);
   assert.match(readme, /copilot plugin install azure-cost-health-check@awesome-copilot/);
   assert.match(readme, /Open Azure Cost Health Check in real mode for my subscription/);
   assert.match(readme, /A loading or permission-limited\s+section is not zero cost/);
-  assert.doesNotMatch(readme, /\bcandidate\b|receipt|verification evidence|release process/i);
+  assert.doesNotMatch(readme, /receipt|verification evidence|release process/i);
   assert.match(readme, /\[installation notes\]\(docs\/implementation\.md#install\)/);
   assert.match(implementation, /com\.github\.copilot\/extensions\/azure-cost-health-check/);
   assert.match(implementation, /If the `azure-cost-health-check-latest` tag is\s+available/i);
