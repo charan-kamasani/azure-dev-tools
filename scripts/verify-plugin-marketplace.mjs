@@ -15,11 +15,7 @@ const packages = {
     ],
     extension: "azure-functions-hosted-skills",
     extensionPath: "com.github.copilot/extensions/azure-functions-hosted-skills",
-    version: "0.5.3",
-    sha: "b3551729b5d1e6377283efd1a012fa523e0c8aac",
     receipt: "canvases/azure-functions-hosted-skills/SHA256SUMS",
-    receiptSha256: "264259ca3530ffeeb97bd52fd704ee3767a563eb5c71a0d0e806200cd80225ad",
-    receiptCount: 49,
   },
   "azure-resources-query": {
     path: "canvases/azure-resources-query",
@@ -27,21 +23,13 @@ const packages = {
     skills: ["./skills/azure-resources-query/"],
     extension: "azure-resources-query",
     extensionPath: "com.github.copilot/extensions/azure-resources-query",
-    version: "0.1.3",
-    sha: "b3551729b5d1e6377283efd1a012fa523e0c8aac",
     receipt: "canvases/azure-resources-query/SHA256SUMS",
-    receiptSha256: "e33be5430a138e6005781c24153e9e434f311b44ebfd1c219ae242e0079ac05b",
-    receiptCount: 99,
   },
   "canvas-authoring": {
     path: "plugins/canvas-authoring",
     manifest: "plugin.json",
     skills: ["./skills/create-canvas-app/"],
-    version: "0.1.1",
-    sha: "8af10f8408f69f45fb5137e9b8f5d746f40bc85e",
     receipt: "docs/canvas-authoring/SHA256SUMS",
-    receiptSha256: "d66a82894955dcac9ea072143524c718ea49728d3c947224acdb5fa30fe63c02",
-    receiptCount: 26,
   },
   "azure-cost-health-check": {
     path: "canvases/azure-cost-health-check",
@@ -49,11 +37,7 @@ const packages = {
     skills: ["./skills/azure-cost-health-check/"],
     extension: "azure-cost-health-check",
     extensionPath: "com.github.copilot/extensions/azure-cost-health-check",
-    version: "0.4.3",
-    sha: "b3551729b5d1e6377283efd1a012fa523e0c8aac",
     receipt: "canvases/azure-cost-health-check/SHA256SUMS",
-    receiptSha256: "4053ea1aa490e2c43893a7dfa5dcad8d36e22801b99cda7dbb7c33517e0fef49",
-    receiptCount: 32,
     mutableDocumentation: true,
   },
 };
@@ -63,7 +47,7 @@ const combinedPatchProducts = [
   "canvas-authoring",
 ];
 const combinedPatchCommit = "a6d394bbaa6fb1dc0151257a85cbac0de772b138";
-const newCanvasProducts = ["azure-functions-hosted-skills", "azure-resources-query"];
+const pairedCanvasProducts = ["azure-functions-hosted-skills", "azure-resources-query"];
 const products = Object.keys(packages);
 const previousTags = {
   "azure-functions-hosted-skills-v0-5-1-2bb8354": "cc59516eba4d6eecda9ff7c9f0191fe2117167af",
@@ -108,6 +92,12 @@ function packageTree(sha, path) {
       }
       return { mode: match[1], oid: match[3], file: match[4].slice(path.length + 1) };
     });
+}
+
+function isSafePackagePath(file) {
+  return typeof file === "string" && !file.startsWith("/") &&
+    !/[\t\n\r\\]/.test(file) &&
+    file.split("/").every((segment) => segment && segment !== "." && segment !== "..");
 }
 
 const documentExtensions = /\.(?:md|markdown|txt|rst|adoc|png|jpe?g|webp|gif|avif)$/i;
@@ -176,8 +166,7 @@ export function verifyMutableDocumentationTrees(current, tagged, readCurrent, re
   const pinned = (tree, readFile) => {
     const files = new Map();
     for (const entry of tree) {
-      if (files.has(entry.file) || /[\t\n\r\\]/.test(entry.file) ||
-          entry.file.split("/").some((segment) => !segment || segment === "..") ||
+      if (files.has(entry.file) || !isSafePackagePath(entry.file) ||
           entry.mode !== "100644" && entry.mode !== "100755") {
         throw new Error(`unsafe package file or mode: ${entry.file}`);
       }
@@ -258,9 +247,10 @@ export function verifyMutableReleaseMetadata(release, checksums, immutableFiles,
   }
 }
 
-function releaseTagFor(name, version) {
+function releaseTagFor(name, version, { allowMissing = false } = {}) {
   const tags = git("tag", "-l", `${name}-v${version.replaceAll(".", "-")}-*`)
     .split("\n").filter(Boolean);
+  if (allowMissing && tags.length === 0) return null;
   if (tags.length !== 1) {
     throw new Error(`${name}@${version}: expected exactly one reviewed immutable release tag`);
   }
@@ -292,10 +282,9 @@ export function verifySubsequentReleaseCommit(previousCommit, releaseCommit) {
   }
 }
 
-export function verifyReceiptPin({ receipt, receiptSha256, receiptCount }) {
-  if (!receipt || !/^[0-9a-f]{64}$/.test(receiptSha256) ||
-      !Number.isSafeInteger(receiptCount) || receiptCount < 1) {
-    throw new Error("Every product requires an independently reviewed checksum receipt pin");
+export function verifyReceiptPath({ receipt }) {
+  if (!isSafePackagePath(receipt)) {
+    throw new Error("Every product requires a fixed repository-relative checksum receipt");
   }
 }
 
@@ -318,12 +307,7 @@ export function verifyMarketplace(manifest, { candidate = false } = {}) {
       products.some((name) => !names.includes(name))) {
     throw new Error("Marketplace must contain exactly the reviewed production products");
   }
-  if (manifest.plugins.some(({ name, version }) => version !== packages[name].version)) {
-    throw new Error("Marketplace versions must match the reviewed source releases");
-  }
-
-  const results = manifest.plugins.map((plugin) =>
-    verifyPlugin(plugin, { candidate: candidate && newCanvasProducts.includes(plugin.name) }));
+  const results = manifest.plugins.map((plugin) => verifyPlugin(plugin, { candidate }));
   if (manifest.name === "azure-dev-tools") {
     const commits = combinedPatchProducts.map((name) =>
       git("rev-parse", `${name}-v${previousVersion(name)}-8af10f8^{commit}`));
@@ -342,13 +326,36 @@ export function verifyMarketplace(manifest, { candidate = false } = {}) {
     }
     const costCommit = git("rev-parse", "azure-cost-health-check-v0-4-3-b355172^{commit}");
     verifySubsequentReleaseCommit(commits[0], costCommit);
-    if (!candidate) {
-      const canvasCommits = newCanvasProducts.map((name) =>
-        git("rev-parse", `${releaseTagFor(name, packages[name].version)}^{commit}`));
+    const pairedTags = pairedCanvasProducts.map((name) =>
+      releaseTagFor(name, marketplaceVersion(manifest, name), { allowMissing: candidate }));
+    if (pairedTags.some(Boolean) && !pairedTags.every(Boolean)) {
+      throw new Error("Paired canvas releases must both be candidates or both have immutable tags");
+    }
+    const pairedCommits = pairedTags.every(Boolean)
+      ? pairedTags.map((tag) => git("rev-parse", `${tag}^{commit}`))
+      : [];
+    if (pairedCommits.length) {
+      const canvasCommits = pairedCommits;
       if (new Set(canvasCommits).size !== 1) {
         throw new Error("New canvas release tags must point to the same reviewed merge commit");
       }
       verifySubsequentReleaseCommit(costCommit, canvasCommits[0]);
+    }
+    const currentCostTag = releaseTagFor(
+      "azure-cost-health-check",
+      marketplaceVersion(manifest, "azure-cost-health-check"),
+      { allowMissing: candidate },
+    );
+    if (currentCostTag) {
+      if (!pairedCommits.length) {
+        throw new Error("Cost Health cannot be published before the paired canvas releases");
+      }
+      verifySubsequentReleaseCommit(
+        pairedCommits[0],
+        git("rev-parse", `${currentCostTag}^{commit}`),
+      );
+    } else if (pairedCommits.length) {
+      verifySubsequentReleaseCommit(pairedCommits[0], "HEAD");
     }
   }
   return results;
@@ -362,30 +369,63 @@ function previousVersion(name) {
   }[name];
 }
 
-export function verifyTagSource(name, version, tag) {
-  const product = packages[name];
-  if (!product || version !== product.version || !/^[0-9a-f]{40}$/.test(product.sha)) {
-    throw new Error(`${name}@${version}: no independently reviewed source release`);
+function marketplaceVersion(manifest, name) {
+  return manifest.plugins.find((plugin) => plugin.name === name).version;
+}
+
+function parseVersion(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  const parts = match?.slice(1).map(Number);
+  return parts?.every(Number.isSafeInteger) ? parts : null;
+}
+
+function compareVersions(left, right) {
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) return left[index] - right[index];
   }
+  return 0;
+}
+
+function latestHistoricalVersion(name) {
+  return Object.keys(previousTags).reduce((latest, tag) => {
+    const match = new RegExp(
+      `^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-v(\\d+)-(\\d+)-(\\d+)-[0-9a-f]+$`,
+    ).exec(tag);
+    if (!match) return latest;
+    const version = match.slice(1).map(Number);
+    return !latest || compareVersions(version, latest) > 0 ? version : latest;
+  }, null);
+}
+
+export function verifyCurrentVersion(name, version) {
+  const current = parseVersion(version);
+  const historical = packages[name] && latestHistoricalVersion(name);
+  if (!current || !historical) {
+    throw new Error(`${name}@${version}: expected a reviewed product and semantic version`);
+  }
+  if (compareVersions(current, historical) < 0) {
+    throw new Error(`${name}@${version}: current version must not precede the latest immutable release`);
+  }
+}
+
+export function verifyTagSource(name, version, tag) {
+  verifyCurrentVersion(name, version);
   const base = `${name}-v${version.replaceAll(".", "-")}-`;
   const suffix = tag.startsWith(base) ? tag.slice(base.length) : "";
-  if (!/^[0-9a-f]{7,40}$/.test(suffix) ||
-      !product.sha.startsWith(suffix)) {
-    throw new Error(`${name}@${version}: tag does not identify the reviewed source commit`);
+  if (!/^[0-9a-f]{7,40}$/.test(suffix)) {
+    throw new Error(`${name}@${version}: tag does not identify a source commit`);
   }
 }
 
 export function verifyPlugin({ source, name, version }, { candidate = false } = {}) {
   const product = packages[name];
-  if (!product || version !== product.version) {
-    throw new Error(`${name}: expected a reviewed product and version`);
-  }
-  verifyReceiptPin(product);
+  verifyCurrentVersion(name, version);
+  verifyReceiptPath(product);
   const path = product.path;
   if (source !== path) {
     throw new Error(`${name}: source must use its own repo-relative path`);
   }
-  const releaseTag = candidate ? null : releaseTagFor(name, version);
+  const releaseTag = releaseTagFor(name, version, { allowMissing: candidate });
   if (releaseTag) verifyTagSource(name, version, releaseTag);
   const revision = "HEAD";
 
@@ -413,14 +453,18 @@ export function verifyPlugin({ source, name, version }, { candidate = false } = 
       } else {
         const payload = files.filter((file) =>
           file !== "release.json" && file !== "checksums.json" && file !== "SHA256SUMS");
-        const expected = [...payload, "release.json"];
+        const protectedPayload = payload.filter((file) => !isMutableDocument(file));
+        const expected = [...release.files, "release.json"];
         if (release.schemaVersion !== 1 || release.format !== "plugin" ||
             release.publicationRepository !== "microsoft/azure-dev-tools" ||
-            release.files.length !== payload.length ||
-            new Set(release.files).size !== payload.length ||
-            release.files.some((file) => !payload.includes(file)) ||
+            !Array.isArray(release.files) ||
+            new Set(release.files).size !== release.files.length ||
+            release.files.some((file) => !isSafePackagePath(file)) ||
+            protectedPayload.some((file) => !release.files.includes(file)) ||
+            release.files.some((file) => !payload.includes(file) && !isMutableDocument(file)) ||
             Object.keys(checksums).length !== expected.length ||
-            expected.some((file) => checksums[file] !==
+            expected.some((file) => !Object.hasOwn(checksums, file)) ||
+            [...protectedPayload, "release.json"].some((file) => checksums[file] !==
               createHash("sha256").update(fileAt(revision, `${path}/${file}`)).digest("hex"))) {
           throw new Error("Agent Plugins release inventory or checksums differ from package files");
         }
@@ -473,28 +517,27 @@ export function verifyPlugin({ source, name, version }, { candidate = false } = 
     if (releaseTag && !receipt.equals(fileAt(releaseTag, product.receipt))) {
       throw new Error("current checksum receipt differs from immutable release tag");
     }
-    if (createHash("sha256").update(receipt).digest("hex") !== product.receiptSha256) {
-      throw new Error("production checksum receipt differs from reviewed candidate");
-    }
     const entries = receipt.toString("utf8").trimEnd().split("\n").map((line) => {
       const match = /^([0-9a-f]{64})  (.+)$/.exec(line);
       if (!match) throw new Error(`invalid checksum receipt entry: ${line}`);
       if (!match[2].startsWith(product.receiptPrefix ?? "")) {
         throw new Error(`invalid checksum receipt path: ${match[2]}`);
       }
-      return { hash: match[1], file: match[2].slice((product.receiptPrefix ?? "").length) };
+      const file = match[2].slice((product.receiptPrefix ?? "").length);
+      if (!isSafePackagePath(file)) {
+        throw new Error(`invalid checksum receipt path: ${match[2]}`);
+      }
+      return { hash: match[1], file };
     });
-    const expectedFiles = product.mutableDocumentation
-      ? immutableFiles
-      : packageFiles(releaseTag ?? revision, path).filter((file) => file !== "SHA256SUMS");
-    if (entries.length !== product.receiptCount ||
-        new Set(entries.map(({ file }) => file)).size !== expectedFiles.length ||
-        entries.length !== expectedFiles.length ||
-        entries.some(({ file }) => !expectedFiles.includes(file))) {
-      const scope = product.mutableDocumentation ? "protected" : "historically tagged";
-      throw new Error(`checksum receipt must cover exactly the ${product.receiptCount} ${scope} plugin files`);
+    const expectedFiles = immutableFiles;
+    const entryFiles = entries.map(({ file }) => file);
+    if (new Set(entryFiles).size !== entries.length ||
+        expectedFiles.some((file) => !entryFiles.includes(file)) ||
+        entries.some(({ file }) => !expectedFiles.includes(file) && !isMutableDocument(file))) {
+      throw new Error(`checksum receipt must cover every protected plugin file exactly once`);
     }
     for (const { hash, file } of entries) {
+      if (isMutableDocument(file)) continue;
       const fileRevision = product.mutableDocumentation ? revision : releaseTag ?? revision;
       if (createHash("sha256").update(fileAt(fileRevision, `${path}/${file}`)).digest("hex") !== hash) {
         throw new Error(`plugin file differs from checksum receipt: ${file}`);

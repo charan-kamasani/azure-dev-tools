@@ -61,17 +61,19 @@ for (const [name, version, count, receiptHash] of [
       return { hash: match[1], file: match[2] };
     });
     assert.equal(entries.length, count);
-    assert.deepEqual(entries.map(({ file }) => file).sort(),
-      files.filter((file) => file !== "SHA256SUMS").sort());
+    const protectedFiles = files.filter((file) =>
+      file !== "SHA256SUMS" && file !== "README.md" && !file.startsWith("docs/"));
+    assert.ok(protectedFiles.every((file) => entries.some((entry) => entry.file === file)));
     assert.deepEqual(Object.keys(checksums).sort(), [...release.files, "release.json"].sort());
     for (const { hash, file } of entries) {
+      if (!files.includes(file) || file === "README.md" || file.startsWith("docs/")) continue;
       assert.equal(createHash("sha256").update(read(file)).digest("hex"), hash, file);
       if (file !== "checksums.json") assert.equal(checksums[file], hash, file);
     }
   });
 }
 
-test("Cost Health 0.4.3 pins every protected Agent Plugins file without pinning mutable docs", () => {
+test("Cost Health 0.4.4 pins every protected Agent Plugins file without pinning mutable docs", () => {
   const packagePath = "canvases/azure-cost-health-check/";
   const read = (file) => readFileSync(new URL(`${packagePath}${file}`, root));
   const release = JSON.parse(read("release.json"));
@@ -80,13 +82,13 @@ test("Cost Health 0.4.3 pins every protected Agent Plugins file without pinning 
   const receipt = read("SHA256SUMS");
   assert.equal(release.schemaVersion, 2);
   assert.equal(release.mutableDocumentation, true);
-  assert.equal(release.version, "0.4.3");
-  assert.equal(manifest.version, "0.4.3");
+  assert.equal(release.version, "0.4.4");
+  assert.equal(manifest.version, "0.4.4");
   assert.equal(manifest.extensions["com.github.copilot"].logo, "assets/preview.png");
   assert.equal(createHash("sha256").update(read("checksums.json")).digest("hex"),
-    "7fae84cfdc0612410dd870104f373193a05bf03278d2ad9af90025d44e88e812");
+    "dc8611829f2e9f149f49d85899c3c2676c9b11bbc370392a12c19a356efd0cfa");
   assert.equal(createHash("sha256").update(receipt).digest("hex"),
-    "4053ea1aa490e2c43893a7dfa5dcad8d36e22801b99cda7dbb7c33517e0fef49");
+    "a01be5b4c8230d21e2ca182d7e7a57b00930efbb57636615fb2ebc8b3c33a4be");
 
   const files = execFileSync("git", ["ls-files", "--", packagePath], {
     cwd: root, encoding: "utf8",
@@ -98,7 +100,7 @@ test("Cost Health 0.4.3 pins every protected Agent Plugins file without pinning 
     assert.ok(match, `invalid protected receipt entry: ${line}`);
     return { hash: match[1], file: match[2] };
   });
-  assert.equal(files.length, 35);
+  assert.equal(files.length, 36);
   assert.equal(entries.length, 32);
   assert.deepEqual(entries.map(({ file }) => file).sort(), protectedFiles.sort());
   assert.deepEqual(Object.keys(checksums).sort(), [...release.files, "release.json"].sort());

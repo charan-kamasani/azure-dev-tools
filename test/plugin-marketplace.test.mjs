@@ -1,19 +1,34 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import {
   verifyCombinedReleaseCommits,
+  verifyCurrentVersion,
   verifyMarketplace,
   verifyPlugin,
   verifyPreviousReleaseCommits,
-  verifyReceiptPin,
+  verifyReceiptPath,
   verifyRuntimeInventory,
   verifySubsequentReleaseCommit,
   verifyTagSource,
 } from "../scripts/verify-plugin-marketplace.mjs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/marketplace.candidate.json", import.meta.url)));
+const root = fileURLToPath(new URL("../", import.meta.url));
+const verifier = "scripts/verify-plugin-marketplace.mjs";
 
 function modified(update) {
   const manifest = structuredClone(fixture);
@@ -35,17 +50,118 @@ test("requires release tags for full verification, then checks all four plugins"
   assert.match(results[0], /azure-functions-hosted-skills@0\.5\.3 azure-functions-hosted-skills-v0-5-3-/);
   assert.match(results[1], /azure-resources-query@0\.1\.3 azure-resources-query-v0-1-3-/);
   assert.match(results[2], /canvas-authoring@0\.1\.1 canvas-authoring-v0-1-1-/);
-  assert.match(results[3], /azure-cost-health-check@0\.4\.3 azure-cost-health-check-v0-4-3-/);
+  assert.match(results[3], /azure-cost-health-check@0\.4\.4 azure-cost-health-check-v0-4-4-/);
 });
 
-test("candidate validates both new Agent Plugins packages but does not claim release tags", () => {
+test("candidate validates every reviewed package and omits only missing immutable tags", () => {
   const candidate = modified((m) => { m.name = "azure-dev-tools"; });
   const results = verifyMarketplace(candidate, { candidate: true });
   assert.equal(results.length, 4);
   assert.match(results[0], /azure-functions-hosted-skills@0\.5\.3 \(candidate; immutable tag pending\)/);
   assert.match(results[1], /azure-resources-query@0\.1\.3 \(candidate; immutable tag pending\)/);
   assert.match(results[2], /canvas-authoring-v0-1-1-8af10f8/);
-  assert.match(results[3], /azure-cost-health-check-v0-4-3-b355172/);
+  assert.match(results[3], /azure-cost-health-check@0\.4\.4 \(candidate; immutable tag pending\)/);
+});
+
+test("candidate rejects corrupted protected payloads and checksum receipts", () => {
+  const checkout = mkdtempSync(join(tmpdir(), "marketplace-candidate-"));
+  const clone = join(checkout, "repo");
+  const git = (...args) => execFileSync("git", ["-C", clone, ...args], {
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+  const verify = () => {
+    try {
+      return execFileSync("node", [realpathSync(join(clone, verifier)), "--candidate"], {
+        cwd: clone, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      throw new Error(error.stderr);
+    }
+  };
+  const packagePath = "canvases/azure-cost-health-check";
+  try {
+    execFileSync("git", ["clone", "--quiet", "--local", "--no-hardlinks", root, clone]);
+    copyFileSync(join(root, verifier), join(clone, verifier));
+    git("config", "user.name", "Release policy test");
+    git("config", "user.email", "release-policy@example.invalid");
+    assert.doesNotThrow(verify);
+
+    const runtime = join(clone, packagePath,
+      "com.github.copilot/extensions/azure-cost-health-check/extension.mjs");
+    const originalRuntime = readFileSync(runtime);
+    writeFileSync(runtime, Buffer.concat([originalRuntime, Buffer.from("\n// Corrupted payload\n")]));
+    git("add", "--", packagePath);
+    git("commit", "--quiet", "-m", "Corrupt candidate payload");
+    assert.throws(verify, /protected release checksum differs|plugin file differs from checksum receipt/);
+
+    writeFileSync(runtime, originalRuntime);
+    const receipt = join(clone, packagePath, "SHA256SUMS");
+    writeFileSync(receipt, readFileSync(receipt, "utf8").split("\n").slice(1).join("\n"));
+    git("add", "--", packagePath);
+    git("commit", "--quiet", "-m", "Corrupt candidate receipt");
+    assert.throws(verify, /checksum receipt must cover every protected plugin file exactly once/);
+  } finally {
+    rmSync(checkout, { recursive: true, force: true });
+  }
+});
+
+test("a subsequent Cost candidate version validates without a verifier edit", () => {
+  const checkout = mkdtempSync(join(tmpdir(), "marketplace-next-version-"));
+  const clone = join(checkout, "repo");
+  const git = (...args) => execFileSync("git", ["-C", clone, ...args], {
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+  const read = (path) => readFileSync(join(clone, path));
+  const writeJson = (path, value) =>
+    writeFileSync(join(clone, path), `${JSON.stringify(value, null, 2)}\n`);
+  const digest = (path) => createHash("sha256").update(read(path)).digest("hex");
+  const verify = () => execFileSync(
+    "node", [realpathSync(join(clone, verifier)), "--candidate"],
+    { cwd: clone, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  );
+  const packagePath = "canvases/azure-cost-health-check";
+  try {
+    execFileSync("git", ["clone", "--quiet", "--local", "--no-hardlinks", root, clone]);
+    copyFileSync(join(root, verifier), join(clone, verifier));
+    git("config", "user.name", "Release policy test");
+    git("config", "user.email", "release-policy@example.invalid");
+
+    for (const path of [
+      ".github/plugin/marketplace.json",
+      `${packagePath}/.github/plugin/plugin.json`,
+      `${packagePath}/package.json`,
+      `${packagePath}/release.json`,
+    ]) {
+      const value = JSON.parse(read(path));
+      if (path === ".github/plugin/marketplace.json") {
+        value.plugins.find(({ name }) => name === "azure-cost-health-check").version = "0.4.5";
+      } else {
+        value.version = "0.4.5";
+      }
+      writeJson(path, value);
+    }
+
+    const checksumsPath = `${packagePath}/checksums.json`;
+    const checksums = JSON.parse(read(checksumsPath));
+    for (const file of [".github/plugin/plugin.json", "package.json", "release.json"]) {
+      checksums[file] = digest(`${packagePath}/${file}`);
+    }
+    writeJson(checksumsPath, checksums);
+
+    const receiptPath = `${packagePath}/SHA256SUMS`;
+    const receipt = read(receiptPath).toString("utf8").trimEnd().split("\n").map((line) => {
+      const [hash, file] = line.split("  ");
+      const fullPath = `${packagePath}/${file}`;
+      return `${existsSync(join(clone, fullPath)) ? digest(fullPath) : hash}  ${file}`;
+    });
+    writeFileSync(join(clone, receiptPath), `${receipt.join("\n")}\n`);
+    git("add", "--", ".github/plugin/marketplace.json", packagePath);
+    git("commit", "--quiet", "-m", "Prepare next Cost candidate");
+
+    assert.doesNotThrow(verify);
+  } finally {
+    rmSync(checkout, { recursive: true, force: true });
+  }
 });
 
 test("rejects missing products and duplicate entries", () => {
@@ -89,13 +205,13 @@ test("rejects remote, moving, and cross-product sources", () => {
 test("rejects mismatched package versions and paths before checking tags", () => {
   assert.throws(() => verifyMarketplace(modified((m) => {
     m.plugins[0].version = "0.5.1";
-  })), /versions must match/);
+  }), { candidate: true }), /must not precede/);
   assert.throws(() => verifyMarketplace(modified((m) => {
     m.plugins[0].source = "canvases/azure-resources-query";
-  })), /own repo-relative path/);
+  }), { candidate: true }), /own repo-relative path/);
   assert.throws(() => verifyMarketplace(modified((m) => {
     m.plugins[2].version = "0.1.0";
-  })), /versions must match/);
+  }), { candidate: true }), /must not precede/);
 });
 
 test("unreviewed versions fail before a tag lookup", () => {
@@ -103,32 +219,35 @@ test("unreviewed versions fail before a tag lookup", () => {
     name: "azure-resources-query",
     version: "0.1.0",
     source: "canvases/azure-resources-query",
-  }), /expected a reviewed product and version/);
+  }), /must not precede/);
   assert.throws(() => verifyPlugin({
     name: "canvas-authoring",
     version: "0.1.0",
     source: "plugins/canvas-authoring",
-  }), /expected a reviewed product and version/);
+  }), /must not precede/);
+  assert.throws(() => verifyCurrentVersion(
+    "unapproved-plugin", "1.0.0",
+  ), /expected a reviewed product/);
 });
 
-test("target tags must identify the independently reviewed patch source merge", () => {
+test("target tags must identify the package version and a source commit", () => {
   for (const [name, version, suffix] of [
     ["azure-functions-hosted-skills", "0.5.3", "b355172"],
     ["azure-resources-query", "0.1.3", "b355172"],
     ["canvas-authoring", "0.1.1", "8af10f8"],
-    ["azure-cost-health-check", "0.4.3", "b355172"],
+    ["azure-cost-health-check", "0.4.4", "66216f0"],
   ]) {
     assert.doesNotThrow(() => verifyTagSource(
       name, version, `${name}-v${version.replaceAll(".", "-")}-${suffix}`,
     ));
     assert.throws(() => verifyTagSource(
-      name, version, `${name}-v${version.replaceAll(".", "-")}-deadbeef`,
-    ), /does not identify the reviewed source commit/);
+      name, version, `${name}-v0-0-0-deadbeef`,
+    ), /does not identify a source commit/);
   }
   assert.throws(() => verifyMarketplace(modified((m) => {
     m.name = "azure-dev-tools";
     m.plugins[0].version = "0.5.1";
-  })), /versions must match/);
+  })), /must not precede/);
 });
 
 test("three patch tags share one new commit and old tags retain exact historical commits", () => {
@@ -168,21 +287,18 @@ test("a later product release has a distinct merge descending from the combined 
   assert.throws(() => verifySubsequentReleaseCommit(patchCommit, earlierCommit), /descend from the prior/);
 });
 
-test("every product must pin its reviewed receipt scope before publication", () => {
+test("every product must use a safe fixed receipt path", () => {
   const receipt = {
     receipt: "canvases/unreleased-canvas/SHA256SUMS",
-    receiptSha256: "a".repeat(64),
-    receiptCount: 32,
   };
-  assert.doesNotThrow(() => verifyReceiptPin(receipt));
+  assert.doesNotThrow(() => verifyReceiptPath(receipt));
   for (const incomplete of [
     { ...receipt, receipt: undefined },
-    { ...receipt, receiptSha256: undefined },
-    { ...receipt, receiptSha256: "unreviewed" },
-    { ...receipt, receiptCount: undefined },
-    { ...receipt, receiptCount: 0 },
+    { ...receipt, receipt: "/tmp/SHA256SUMS" },
+    { ...receipt, receipt: "../SHA256SUMS" },
+    { ...receipt, receipt: "canvases\\unreleased-canvas\\SHA256SUMS" },
   ]) {
-    assert.throws(() => verifyReceiptPin(incomplete), /checksum receipt pin/);
+    assert.throws(() => verifyReceiptPath(incomplete), /repository-relative checksum receipt/);
   }
 });
 
