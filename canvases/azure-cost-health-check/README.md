@@ -7,6 +7,9 @@ AI billing together in a read-only Copilot dashboard.
 
 ## Install
 
+The `microsoft/azure-dev-tools` production marketplace contains this reviewed
+0.4.4 candidate, but its immutable 0.4.4 tag is not published yet.
+
 If your GitHub Copilot host shows the **awesome-copilot** marketplace, open
 **Customize → Plugins** and install **Azure Cost Health Check**. The
 [listed 0.4.3 package](https://github.com/microsoft/azure-dev-tools/tree/59e5889e464b099344a8ba8ff13cdf73d401d433/canvases/azure-cost-health-check)

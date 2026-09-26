@@ -32,8 +32,8 @@ the reproducible install points:
 | --- | --- | --- |
 | [Azure Functions Hosted Skills](canvases/azure-functions-hosted-skills/) | Build and run local Hosted Skills or invoke supported functions in an existing Function App. | Marketplace candidate 0.5.3 is on main; its immutable 0.5.3 tag is not published. `azure-functions-hosted-skills-latest` still points to 0.5.2. |
 | [Azure Resources Query](canvases/azure-resources-query/) | Find and inspect Azure resources with read-only Resource Graph queries. | Marketplace candidate 0.1.3 is on main; its immutable 0.1.3 tag is not published. `azure-resources-query-latest` still points to 0.1.2. |
-| [Azure Cost Health Check](canvases/azure-cost-health-check/) | Review spend, forecasts, budgets, alerts, recommendations, and AI billing. | 0.4.3 is tagged; `azure-cost-health-check-latest` points to that release. |
 | [Canvas Authoring](plugins/canvas-authoring/) | Add toolkit setup and starter apps to the native `create-canvas` workflow. | 0.1.1 is tagged; `canvas-authoring-latest` points to that release. Skill-only plugin, with no canvas panel. |
+| [Azure Cost Health Check](canvases/azure-cost-health-check/) | Review spend, forecasts, budgets, alerts, recommendations, and AI billing. | Marketplace candidate 0.4.4 is under review; its immutable 0.4.4 tag is not published. `azure-cost-health-check-latest` still points to 0.4.3. |
 
 Azure SRE Agent is not distributed from this production marketplace.
 Repository registration and native App installation were not reverified by
