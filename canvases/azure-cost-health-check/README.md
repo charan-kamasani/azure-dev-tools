@@ -8,12 +8,15 @@ plugin includes a canvas and a launcher skill; it is not a Claude Desktop MCPB.
 
 ## Install
 
-If your organization has access to the `microsoft/azure-dev-tools`
-marketplace, open GitHub Copilot **Customize > Plugins**, add
+Version 0.4.3 is published at the immutable
+`azure-cost-health-check-v0-4-3-b355172` tag, and
+`azure-cost-health-check-latest` points to that release. If your organization
+has access to the `microsoft/azure-dev-tools` marketplace, open GitHub Copilot
+**Customize > Plugins**, add
 `microsoft/azure-dev-tools` (marketplace ID `azure-dev-tools`) using the
-marketplace gear, and install `azure-cost-health-check` when it is listed.
-This installs both the canvas and its launcher skill. Fully quit and reopen
-GitHub Copilot, start a new chat, and check that the
+marketplace gear, and install `azure-cost-health-check`. This installs both the
+canvas and its launcher skill. Fully quit and reopen GitHub Copilot, start a
+new chat, and check that the
 `azure-cost-health-check` skill is available. If the plugin is not listed,
 ask your marketplace administrator about access and availability.
 
@@ -24,12 +27,10 @@ copilot plugin marketplace add microsoft/azure-dev-tools
 copilot plugin install azure-cost-health-check@azure-dev-tools
 ```
 
-To pin the *full plugin* to an exact version, obtain its published immutable
-`azure-cost-health-check-v0-4-3-<source-qualifier>` tag from the marketplace
-administrator. Replace the placeholder with that exact tag:
+To pin the full plugin to the exact published version:
 
 ```sh
-git clone --depth 1 --branch "<exact-published-tag>" https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
+git clone --depth 1 --branch azure-cost-health-check-v0-4-3-b355172 https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
 copilot plugin install ./azure-cost-health-check-plugin/canvases/azure-cost-health-check
 ```
 
@@ -59,6 +60,28 @@ spend and cost drivers, then forecasts, budgets, Advisor and native alerts,
 then AI billing. **Loading**, missing permissions and partial coverage are
 not zero usage. Native alert and analysis buttons request guidance in chat;
 they do not authorize Azure writes.
+
+## What you can do
+
+- Compare current spend with forecasts and budgets in one read-only dashboard.
+- Find anomalies, native alerts, and Advisor recommendations that need
+  attention.
+- Review AI billing beside other cost drivers without treating missing data as
+  zero.
+
+## Prompts to try
+
+```text
+Open Azure Cost Health Check in real mode for my subscription.
+```
+
+```text
+Open Azure Cost Health Check so I can review budget alerts and forecasted spend for my subscription.
+```
+
+```text
+Open Azure Cost Health Check and help me understand which recommendations are read-only versus actions I must approve elsewhere.
+```
 
 ## Build from source (maintainers)
 

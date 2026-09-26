@@ -1,76 +1,70 @@
 # Azure Developer Tools
 
-Azure Developer Tools is a home for tools that help developers work with Azure
-through GitHub Copilot.
+Install Azure-focused GitHub Copilot plugins that help you build Hosted Skills,
+inspect Azure resources, review cost health, and create canvas apps.
 
-## Install full plugins (primary)
+## Install a plugin
 
-Hosted Skills 0.5.3 and Azure Resources Query 0.1.3 are **candidates**, not
-tagged releases. Their Agent Plugins packages now include a namespaced canvas
-extension, preview, and launcher skills. Until their reviewed PR merges and
-new immutable tags are published, install the previously released versions
-below. The authoring companion is skill-only, not a running canvas.
-Marketplace registration and native App installation have not yet been verified.
+Add the production marketplace once:
 
-| Plugin | Type | Production package | Status |
-| --- | --- | --- | --- |
-| **Azure Functions Hosted Skills** | Canvas with skills | [Production package](canvases/azure-functions-hosted-skills/) | 0.5.3 candidate; previous 0.5.2 tagged; App installation unverified |
-| **Azure Resources Query** | Canvas with skill | [Production package](canvases/azure-resources-query/) | 0.1.3 candidate; previous 0.1.2 tagged; App installation unverified |
-| **Canvas Toolkit (Canvas Authoring)** | Skill-only plugin; no canvas | [Production package](plugins/canvas-authoring/) | Tagged; App installation unverified |
-| **Azure Cost Health Check** | Canvas with skill | [Production package](canvases/azure-cost-health-check/) | Immutable tag required; App installation unverified |
-| **Azure SRE Agent** | Planned | — | **COMING SOON** |
+```sh
+copilot plugin marketplace add microsoft/azure-dev-tools
+```
 
-Review the new [Hosted Skills 0.5.3 candidate](https://github.com/microsoft/azure-dev-tools/tree/paulyuk-propagate-canvas-plugin-layout/canvases/azure-functions-hosted-skills)
-and [Azure Resources Query 0.1.3 candidate](https://github.com/microsoft/azure-dev-tools/tree/paulyuk-propagate-canvas-plugin-layout/canvases/azure-resources-query);
-these branch links are **not** immutable install links. For a reproducible
-released checkout, use the previous [Hosted Skills 0.5.2
-tag](https://github.com/microsoft/azure-dev-tools/tree/azure-functions-hosted-skills-v0-5-2-8af10f8/canvases/azure-functions-hosted-skills),
-[Azure Resources Query 0.1.2
-tag](https://github.com/microsoft/azure-dev-tools/tree/azure-resources-query-v0-1-2-8af10f8/canvases/azure-resources-query),
-or [Canvas Authoring
-tag](https://github.com/microsoft/azure-dev-tools/tree/canvas-authoring-v0-1-1-8af10f8/plugins/canvas-authoring).
-The [Cost Health 0.4.3 version tag](https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-v0-4-3-b355172/canvases/azure-cost-health-check)
-must point to the approved private merge before it is used for installation.
-Its [source export](https://github.com/coreai-microsoft/canvases-cloud-foundation/tree/b3551729b5d1e6377283efd1a012fa523e0c8aac/canvases/azure-cost-health-check)
-is pinned to the merged source revision. The older immutable Hosted 0.5.1
-and ARG 0.1.1 package READMEs retain reviewed public source-distribution
-links. Before the new versions are approved and tagged, use the private 0.5.2
-and 0.1.2 tag links above instead.
+Then install the plugin you need:
 
-After this repository's marketplace is approved and published, open GitHub
-Copilot App **Customize → Plugins**, use the marketplace gear to add
-`microsoft/azure-dev-tools` once, and select a released plugin from the
-`azure-dev-tools` marketplace. CLI install IDs are
-`<product>@azure-dev-tools`. Access to this repository is required. Restart
-Copilot and check the installed skills. Installing a canvas plugin does not
-display its panel automatically: ask Copilot **"Open Azure Functions Hosted
-Skills"**, **"Open Azure Resources Query"**, or, after Cost Health is
-released, **"Open Azure Cost Health Check in real mode for my subscription"**. The authoring companion does
-not open a panel; use the host's native `create-canvas` workflow instead.
-Private marketplace and native App installation have not yet been verified.
-See [installation and release guidance](docs/plugin-marketplace.md). The
-marketplace follows this repository's default branch, not a pinned release.
-Do not treat a private production plugin as released until its immutable tag
-and installation target are verified.
+```sh
+copilot plugin install azure-functions-hosted-skills@azure-dev-tools
+copilot plugin install azure-resources-query@azure-dev-tools
+copilot plugin install azure-cost-health-check@azure-dev-tools
+copilot plugin install canvas-authoring@azure-dev-tools
+```
 
-## Build canvas apps
+You can also open GitHub Copilot **Customize > Plugins**, use the marketplace
+gear to add `microsoft/azure-dev-tools` (marketplace ID `azure-dev-tools`), and
+select a plugin. Fully quit and reopen GitHub Copilot after installation, then
+start a fresh chat.
 
-The [`canvas-authoring` production package](plugins/canvas-authoring/) and
-its [26-file checksum receipt](docs/canvas-authoring/SHA256SUMS) are available
-from the reviewed product merge. Marketplace registration and native
-installation remain unverified. Its one
-`create-canvas-app` companion skill adds toolkit setup and counter or
-read-only Azure resource-group starters to the host's **native**
-`create-canvas` workflow. The host skill must already be installed; this
-plugin contains no extension or preinstalled canvas. Canonical npmjs.org
-publishes `@microsoft/canvas-toolkit@0.1.0-preview.2` with the required
-`/build` export; a corporate mirror may lag. The earlier
-`0.1.0-preview.1` lacks it. See the
-[marketplace release gates](docs/plugin-marketplace.md#production-release-gate).
+The marketplace follows this repository's default branch. Immutable tags are
+the reproducible install points:
+
+| Plugin | What it does | Production status |
+| --- | --- | --- |
+| [Azure Functions Hosted Skills](canvases/azure-functions-hosted-skills/) | Build and run local Hosted Skills or invoke supported functions in an existing Function App. | Marketplace candidate 0.5.3 is on main; its immutable 0.5.3 tag is not published. `azure-functions-hosted-skills-latest` still points to 0.5.2. |
+| [Azure Resources Query](canvases/azure-resources-query/) | Find and inspect Azure resources with read-only Resource Graph queries. | Marketplace candidate 0.1.3 is on main; its immutable 0.1.3 tag is not published. `azure-resources-query-latest` still points to 0.1.2. |
+| [Azure Cost Health Check](canvases/azure-cost-health-check/) | Review spend, forecasts, budgets, alerts, recommendations, and AI billing. | 0.4.3 is tagged; `azure-cost-health-check-latest` points to that release. |
+| [Canvas Authoring](plugins/canvas-authoring/) | Add toolkit setup and starter apps to the native `create-canvas` workflow. | 0.1.1 is tagged; `canvas-authoring-latest` points to that release. Skill-only plugin, with no canvas panel. |
+
+Azure SRE Agent is not distributed from this production marketplace.
+Repository registration and native App installation were not reverified by
+this documentation-only update.
+
+## Start with a useful prompt
+
+**Hosted Skills**
+
+> Open Azure Functions Hosted Skills canvas so I can try a daily GitHub
+> repository digest for octocat/Hello-World with the Timer trigger.
+
+**Resources Query**
+
+> Show my Function Apps in Development.
+
+**Cost Health Check**
+
+> Open Azure Cost Health Check in real mode for my subscription.
+
+**Canvas Authoring**
+
+> Use the native create-canvas skill and the create-canvas-app companion to
+> build a counter canvas.
+
+Each product README lists its prerequisites, safe prompts, first-run workflow,
+version-pinned installation options, and product-specific safety behavior.
 
 ## Get involved
 
-Watch this repository for updates and see [CONTRIBUTING.md](CONTRIBUTING.md)
-to contribute. For help or feedback, see [SUPPORT.md](SUPPORT.md). To report
-a security vulnerability, follow [SECURITY.md](SECURITY.md). This repository
-is licensed under the [MIT License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute. For help or feedback, see
+[SUPPORT.md](SUPPORT.md). To report a security vulnerability, follow
+[SECURITY.md](SECURITY.md). This repository is licensed under the
+[MIT License](LICENSE).

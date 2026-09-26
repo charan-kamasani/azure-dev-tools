@@ -14,12 +14,14 @@ host theme.
 
 ### Install the full plugin
 
-When the **azure-dev-tools** marketplace lists **Azure Resources Query**, open
-**Customize > Plugins** in the GitHub Copilot App. Use the marketplace gear to
-add `microsoft/azure-dev-tools` (ID `azure-dev-tools`), then install **Azure
-Resources Query** (`azure-resources-query`). This installs the full plugin:
-the canvas and its launcher skill. Fully quit GitHub Copilot (not just the
-chat or window), reopen the app, start a new chat, and ask exactly:
+The production marketplace currently lists the 0.1.3 candidate from main, but
+a matching immutable 0.1.3 tag is not published yet. If your GitHub Copilot
+host can access this marketplace, open **Customize > Plugins** in the GitHub
+Copilot App. Use the marketplace gear to add
+`microsoft/azure-dev-tools` (ID `azure-dev-tools`), then install **Azure
+Resources Query** (`azure-resources-query`). This installs the full plugin,
+including the canvas and launcher skill. Fully quit GitHub Copilot, reopen the
+app, start a new chat, and ask exactly:
 
 > Open the Azure Resources Query canvas.
 
@@ -27,35 +29,33 @@ Check **Plugin skills** for the Azure Resources Query launcher skill.
 
 #### Optional: pin the full plugin to an exact version
 
-From the [tag list](https://github.com/microsoft/azure-dev-tools/tags),
-copy the complete immutable tag starting with `azure-resources-query-v0-1-3-`,
-including its source qualifier. The `azure-resources-query-latest` tag moves
-and is not an exact pin. Paste the versioned tag when prompted; this terminal
-path installs the full plugin, including the launcher skill:
+The current immutable release is 0.1.2. This terminal path installs that full
+plugin, including its launcher skill:
 
 ```sh
-printf 'Paste the full versioned Azure Resources Query tag: '
-read -r ARG_TAG
-git clone --depth 1 --branch "$ARG_TAG" https://github.com/microsoft/azure-dev-tools.git azure-resources-query-plugin
+git clone --depth 1 --branch azure-resources-query-v0-1-2-8af10f8 https://github.com/microsoft/azure-dev-tools.git azure-resources-query-plugin
 copilot plugin install ./azure-resources-query-plugin/canvases/azure-resources-query
 ```
 
 Fully quit and reopen GitHub Copilot, start a new chat, use the open-canvas
-prompt above, and check **Plugin skills**.
+prompt above, and check **Plugin skills**. The movable
+`azure-resources-query-latest` tag also points to 0.1.2. Do not describe 0.1.3
+as immutable until its source-qualified tag is published.
 
 **Canvas-only fallback (no launcher skill):** If the full plugin is not listed,
 choose **Customize > Canvases > Install from gist/URL** in the GitHub Copilot
 App and paste the latest nested canvas extension URL:
 
 ```text
-https://github.com/microsoft/azure-dev-tools/tree/azure-resources-query-latest/canvases/azure-resources-query/com.github.copilot/extensions/azure-resources-query
+https://github.com/microsoft/azure-dev-tools/tree/azure-resources-query-latest/canvases/azure-resources-query/extensions/azure-resources-query
 ```
 
-This URL installs **only the canvas extension**, not the launcher skill. If
-your team gave you a link to a specific version, use that link instead.
-Install the folder containing `extension.mjs`, fully quit and reopen GitHub
-Copilot, start a new chat, and use the open-canvas prompt above. Do not install
-this fallback alongside the full plugin; duplicate providers can conflict.
+This movable tag currently uses the 0.1.2 extension layout. The URL installs
+**only the canvas extension**, not the launcher skill. If your team gave you a
+link to a specific version, use that link instead. Install the folder
+containing `extension.mjs`, fully quit and reopen GitHub Copilot, start a new
+chat, and use the open-canvas prompt above. Do not install this fallback
+alongside the full plugin; duplicate providers can conflict.
 
 ### Prerequisites
 
@@ -80,6 +80,14 @@ Or start another resource list:
 > Show storage accounts in Development.
 
 Replace **Development** with your subscription name or ID. You can also list Web Apps, VMs, or other resources supported by ARG. Copilot writes the KQL; **Query details** shows the exact query behind the displayed results.
+
+## What you can do
+
+- Find Function Apps, VMs, storage accounts, and other Azure resources with
+  read-only Resource Graph queries.
+- Confirm subscription scope before results appear, then inspect ARM details.
+- Select only the resources you need and add them to chat without pasting a
+  full inventory.
 
 ## First run: scope, inspect, select, add to chat
 
