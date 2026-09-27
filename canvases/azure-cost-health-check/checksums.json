@@ -2,6 +2,7 @@
   ".github/plugin/plugin.json": "cd12ac8d0085cc972bfba84906a89abe2f88565e01994078f07595496ffea120",
   "assets/preview.png": "adb0f75d11221067de382417519a137a5643a1f37714c9b0ccce8e0847c9c46c",
   "com.github.copilot/extensions/azure-cost-health-check/assets/echarts.min.js": "3c0772ed168040601e6b00987bbb823cb273b01a066e1b660fd96d1550bbd3e1",
+  "com.github.copilot/extensions/azure-cost-health-check/assets/plugin-icon.png": "adb0f75d11221067de382417519a137a5643a1f37714c9b0ccce8e0847c9c46c",
   "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/icons/Subscription.svg": "df78239a16fa8b0d2934b317100e337cac2e49f1ea8d83e55ad1abdf8fa6f136",
   "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/ui.mjs": "9999ea7f40186ac522f8e9bd58e2cee36ac666db4e669090507f220c6c894203",
   "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/ui/azure-subscription-picker.mjs": "7d5b33e705d100fc59b9defbc6e71fee2566f8d3690520fe5de4132aed492f54",
@@ -19,7 +20,7 @@
   "com.github.copilot/extensions/azure-cost-health-check/assets/vega-lite.min.js": "e46d60f7515872e1514179831108b2ca38f21c2ba22e05af4e100a2b7c5baa8b",
   "com.github.copilot/extensions/azure-cost-health-check/assets/vega.min.js": "e91fc88148c4e485ab715839c38dba22a460e4d108de54c223e6bb701cc51f82",
   "com.github.copilot/extensions/azure-cost-health-check/azure-access.mjs": "f8ebf318af553a2cd144452f80d43e9b48e92817f4bee61a006a5e982636ef2f",
-  "com.github.copilot/extensions/azure-cost-health-check/extension.mjs": "b3388fe381e519282bb63fedb72b97c90850bceb47d6c22c214b99bac6572cdc",
+  "com.github.copilot/extensions/azure-cost-health-check/extension.mjs": "7adc5616137cf003109544d9976c08898c639f2aaa8e51e2f37521d7b34021f7",
   "notices/echarts-LICENSE.txt": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
   "notices/echarts-NOTICE-LICENSE.txt": "d491d358344f842685c1b1585970999db65fe30ecf7ef3867af8814f4016c016",
   "notices/vega-embed-LICENSE.txt": "32df67148f0fc3db0eb9e263a7b75d07f1eb14c61955005a4a39c6918d10d137",
@@ -27,7 +28,7 @@
   "notices/vega-lite-LICENSE.txt": "f618900fd0d64046963b29f40590cdd1e341a2f41449f99110d82fd81fea808c",
   "notices/zrender-LICENSE.txt": "a681e9d183c72b4af4856935893805eb48c08f0f5a3f260203db7444c20fb98a",
   "package.json": "0e1e65520d7f022b7302ab732b76b7dde510a853317b002d0935a1a1a927b4b9",
-  "release.json": "ff9b4725d30987c780dd2f9d1e204fcae6f1f98d4dec9cfc41e1a3f4d060f575",
+  "release.json": "ff11d3dd7b433e1e872281bdd531f471af2a027c1a39d58bd0a9a2d0dc9c74c4",
   "skills/azure-cost-health-check/SKILL.md": "895077d2d7ba71dd215564aec30f567ebff2b700bbe111fccd39e21a6dfbdd92",
   "THIRD_PARTY_NOTICES.txt": "bb0eda8343feda40222d290cbdb93b840c0acd1b70e138c5f276dc6ff582951f"
 }

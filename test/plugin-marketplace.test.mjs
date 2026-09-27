@@ -231,14 +231,14 @@ test("unreviewed versions fail before a tag lookup", () => {
 });
 
 test("target tags must identify the package version and a source commit", () => {
-  for (const [name, version, suffix] of [
-    ["azure-functions-hosted-skills", "0.5.3", "b355172"],
-    ["azure-resources-query", "0.1.3", "b355172"],
-    ["canvas-authoring", "0.1.1", "8af10f8"],
-    ["azure-cost-health-check", "0.4.4", "66216f0"],
+  for (const [name, version] of [
+    ["azure-functions-hosted-skills", "0.5.3"],
+    ["azure-resources-query", "0.1.3"],
+    ["canvas-authoring", "0.1.1"],
+    ["azure-cost-health-check", "0.4.4"],
   ]) {
     assert.doesNotThrow(() => verifyTagSource(
-      name, version, `${name}-v${version.replaceAll(".", "-")}-${suffix}`,
+      name, version, `${name}-v${version.replaceAll(".", "-")}-0123456`,
     ));
     assert.throws(() => verifyTagSource(
       name, version, `${name}-v0-0-0-deadbeef`,

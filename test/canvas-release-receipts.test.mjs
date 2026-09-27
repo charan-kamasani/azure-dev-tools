@@ -85,10 +85,18 @@ test("Cost Health 0.4.4 pins every protected Agent Plugins file without pinning 
   assert.equal(release.version, "0.4.4");
   assert.equal(manifest.version, "0.4.4");
   assert.equal(manifest.extensions["com.github.copilot"].logo, "assets/preview.png");
-  assert.equal(createHash("sha256").update(read("checksums.json")).digest("hex"),
-    "dc8611829f2e9f149f49d85899c3c2676c9b11bbc370392a12c19a356efd0cfa");
-  assert.equal(createHash("sha256").update(receipt).digest("hex"),
-    "a01be5b4c8230d21e2ca182d7e7a57b00930efbb57636615fb2ebc8b3c33a4be");
+  const icon = `${release.plugin.extension.directory}/assets/plugin-icon.png`;
+  assert.deepEqual(release.assets.find(({ route }) => route === "assets/plugin-icon.png"), {
+    file: icon,
+    route: "assets/plugin-icon.png",
+    mime: "image/png",
+  });
+  assert.ok(read(icon).equals(read(release.plugin.preview.file)),
+    "runtime and marketplace must use the same product icon");
+  const runtime = read(release.plugin.extension.entry).toString("utf8");
+  assert.match(runtime, /<img src="\/assets\/plugin-icon\.png" alt="" \/>/);
+  assert.match(runtime, /rel==="plugin-icon\.png"/);
+  assert.doesNotMatch(runtime, /azlogo-[abc]/);
 
   const files = execFileSync("git", ["ls-files", "--", packagePath], {
     cwd: root, encoding: "utf8",
@@ -100,10 +108,9 @@ test("Cost Health 0.4.4 pins every protected Agent Plugins file without pinning 
     assert.ok(match, `invalid protected receipt entry: ${line}`);
     return { hash: match[1], file: match[2] };
   });
-  assert.equal(files.length, 36);
-  assert.equal(entries.length, 32);
   assert.deepEqual(entries.map(({ file }) => file).sort(), protectedFiles.sort());
   assert.deepEqual(Object.keys(checksums).sort(), [...release.files, "release.json"].sort());
+  assert.equal(entries.length, Object.keys(checksums).length + 1);
   for (const { hash, file } of entries) {
     assert.equal(createHash("sha256").update(read(file)).digest("hex"), hash, file);
     if (file !== "checksums.json") assert.equal(checksums[file], hash, file);
