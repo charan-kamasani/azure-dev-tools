@@ -14,10 +14,8 @@ host theme.
 
 ### Install the full plugin
 
-The production marketplace currently lists the 0.1.3 candidate from main, but
-a matching immutable 0.1.3 tag is not published yet. If your GitHub Copilot
-host can access this marketplace, open **Customize > Plugins** in the GitHub
-Copilot App. Use the marketplace gear to add
+If your GitHub Copilot host can access this marketplace, open
+**Customize > Plugins** in the GitHub Copilot App. Use the marketplace gear to add
 `microsoft/azure-dev-tools` (ID `azure-dev-tools`), then install **Azure
 Resources Query** (`azure-resources-query`). This installs the full plugin,
 including the canvas and launcher skill. Fully quit GitHub Copilot, reopen the
@@ -29,8 +27,8 @@ Check **Plugin skills** for the Azure Resources Query launcher skill.
 
 #### Optional: pin the full plugin to an exact version
 
-The current immutable release is 0.1.2. This terminal path installs that full
-plugin, including its launcher skill:
+The pinned immutable 0.1.2 release installs the full plugin, including its
+launcher skill:
 
 ```sh
 git clone --depth 1 --branch azure-resources-query-v0-1-2-8af10f8 https://github.com/microsoft/azure-dev-tools.git azure-resources-query-plugin
@@ -39,8 +37,7 @@ copilot plugin install ./azure-resources-query-plugin/canvases/azure-resources-q
 
 Fully quit and reopen GitHub Copilot, start a new chat, use the open-canvas
 prompt above, and check **Plugin skills**. The movable
-`azure-resources-query-latest` tag also points to 0.1.2. Do not describe 0.1.3
-as immutable until its source-qualified tag is published.
+`azure-resources-query-latest` tag also points to this published release.
 
 **Canvas-only fallback (no launcher skill):** If the full plugin is not listed,
 choose **Customize > Canvases > Install from gist/URL** in the GitHub Copilot
@@ -50,12 +47,13 @@ App and paste the latest nested canvas extension URL:
 https://github.com/microsoft/azure-dev-tools/tree/azure-resources-query-latest/canvases/azure-resources-query/extensions/azure-resources-query
 ```
 
-This movable tag currently uses the 0.1.2 extension layout. The URL installs
-**only the canvas extension**, not the launcher skill. If your team gave you a
-link to a specific version, use that link instead. Install the folder
-containing `extension.mjs`, fully quit and reopen GitHub Copilot, start a new
-chat, and use the open-canvas prompt above. Do not install this fallback
-alongside the full plugin; duplicate providers can conflict.
+This URL targets the published 0.1.2 extension layout, and the `-latest` tag is
+movable. The URL installs **only the canvas extension**, not the launcher
+skill. If your team gave you a link to a specific version, use that link
+instead. Install the folder containing `extension.mjs`, fully quit and reopen
+GitHub Copilot, start a new chat, and use the open-canvas prompt above. Do not
+install this fallback alongside the full plugin; duplicate providers can
+conflict.
 
 ### Prerequisites
 

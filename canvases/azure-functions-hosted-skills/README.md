@@ -10,9 +10,8 @@ inspect its output in the canvas.
 
 ## Install
 
-**Install the full plugin.** The production marketplace currently lists the
-0.5.3 candidate from main, but a matching immutable 0.5.3 tag is not published
-yet. If your GitHub Copilot host can access this marketplace, use
+**Install the full plugin.** If your GitHub Copilot host can access this
+marketplace, use
 **Customize > Plugins > marketplace gear > add
 `microsoft/azure-dev-tools` (ID `azure-dev-tools`) > install Azure Functions
 Hosted Skills**. This installs the canvas and both launcher skills. Fully quit
@@ -27,22 +26,19 @@ copilot plugin marketplace add microsoft/azure-dev-tools
 copilot plugin install azure-functions-hosted-skills@azure-dev-tools
 ```
 
-For a reproducible released checkout, install the full 0.5.2 plugin from its
-current immutable tag:
+For a reproducible released checkout, install the pinned 0.5.2 release from
+its immutable tag:
 
 ```sh
 git clone --depth 1 --branch azure-functions-hosted-skills-v0-5-2-8af10f8 https://github.com/microsoft/azure-dev-tools.git azure-functions-hosted-skills-plugin
 copilot plugin install ./azure-functions-hosted-skills-plugin/canvases/azure-functions-hosted-skills
 ```
 
-The marketplace follows main rather than an immutable source tag. Do not
-describe 0.5.3 as immutable until its source-qualified tag is published.
-
 > **Canvas-only fallback:** If the full plugin is unavailable, use
 > **Customize → Canvases → Install from gist/URL** with the nested
 > `https://github.com/microsoft/azure-dev-tools/tree/azure-functions-hosted-skills-latest/canvases/azure-functions-hosted-skills/extensions/azure-functions-hosted-skills`
-> URL. The `-latest` tag is movable and currently uses the 0.5.2 extension
-> layout. This installs the canvas only, not the routing or daily-digest
+> URL. This URL targets the published 0.5.2 extension layout, and the `-latest`
+> tag is movable. This installs the canvas only, not the routing or daily-digest
 > launcher skills. New apps still receive the required `.funcignore`
 > exclusions; unsafe deployment is refused.
 
@@ -52,8 +48,7 @@ bootstrap a second provider, or copy the source folder.
 
 See the
 [Azure Functions Hosted Skills README](https://github.com/microsoft/azure-dev-tools/blob/azure-functions-hosted-skills-latest/canvases/azure-functions-hosted-skills/README.md)
-for this quickstart and safety guidance. The `-latest` links refer to the
-previous release until the 0.5.3 candidate is approved and tagged.
+for this quickstart and safety guidance.
 
 Then ask:
 
@@ -153,9 +148,10 @@ Open Azure Functions Hosted Skills canvas so I can choose an existing Function A
 
 - If the canvas is missing after installation, fully quit and reopen GitHub
   Copilot, start a fresh project chat, and retry the exact open prompt.
-- For the 0.5.2 canvas-only install, use the nested
+- For the pinned 0.5.2 canvas-only install, use the nested
   `extensions/azure-functions-hosted-skills` URL, not the plugin directory.
-  The 0.5.3 marketplace candidate uses the newer namespaced extension layout.
+  Full-plugin installs use the package root and do not require selecting the
+  nested extension layout.
 - Run **Doctor** and follow its specific fixes for PATH, Python, Core Tools,
   Node.js, Azurite, Azure CLI sign-in, package-index access, or duplicate
   installations.

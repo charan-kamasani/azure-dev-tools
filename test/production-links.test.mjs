@@ -61,13 +61,10 @@ test("Cost Health package and customer README match the current catalog", () => 
   assert.equal(release.plugin.extension.entry,
     "com.github.copilot/extensions/azure-cost-health-check/extension.mjs");
   assert.match(readme, /install \*\*Azure Cost Health Check\*\*/);
-  assert.match(readme,
-    /\[listed \d+\.\d+\.\d+ package\]\(https:\/\/github\.com\/microsoft\/azure-dev-tools\/tree\/[0-9a-f]{40}\/canvases\/azure-cost-health-check\)/);
-  assert.match(readme, /is not this source candidate/);
   assert.match(readme, /copilot plugin install azure-cost-health-check@awesome-copilot/);
   assert.match(readme, /Open Azure Cost Health Check in real mode for my subscription/);
   assert.match(readme, /A loading or permission-limited\s+section is not zero cost/);
-  assert.doesNotMatch(readme, /receipt|verification evidence|release process/i);
+  assert.doesNotMatch(readme, /\bcandidate\b|receipt|verification evidence|release process/i);
   assert.match(readme, /\[installation notes\]\(docs\/implementation\.md#install\)/);
   assert.match(implementation, /com\.github\.copilot\/extensions\/azure-cost-health-check/);
   assert.match(implementation, /If the `azure-cost-health-check-latest` tag is\s+available/i);
@@ -99,6 +96,18 @@ test("Hosted customer guide retains installation, launch, first-run, and safety 
   assert.match(readme, /^1\. Select \*\*Local Function App\*\*/m);
   assert.match(readme, /^1\. Select \*\*Azure Function App\*\*/m);
   assert.match(readme, /This installs the canvas only, not the/);
+});
+
+test("customer guides keep actionable pinned installs without candidate process commentary", () => {
+  for (const name of ["azure-functions-hosted-skills", "azure-resources-query"]) {
+    const readme = readFileSync(new URL(`canvases/${name}/README.md`, root), "utf8");
+    assert.match(readme, new RegExp(
+      `git clone --depth 1 --branch ${name}-v\\d+-\\d+-\\d+-[0-9a-f]{7,40} https://github\\.com/microsoft/azure-dev-tools\\.git`,
+    ));
+    assert.match(readme, new RegExp(`${name}-latest`));
+    assert.match(readme, /movable/);
+    assert.doesNotMatch(readme, /\bcandidate\b|not published|approved and tagged|do not describe/i);
+  }
 });
 
 test("new canvas patch tags retain production support documentation", () => {
