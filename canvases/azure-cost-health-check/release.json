@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "format": "plugin",
   "name": "azure-cost-health-check",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "mutableDocumentation": true,
   "plugin": {
     "manifest": ".github/plugin/plugin.json",
@@ -30,6 +30,7 @@
     "THIRD_PARTY_NOTICES.txt",
     "assets/preview.png",
     "com.github.copilot/extensions/azure-cost-health-check/assets/echarts.min.js",
+    "com.github.copilot/extensions/azure-cost-health-check/assets/plugin-icon.png",
     "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/icons/Subscription.svg",
     "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/ui.mjs",
     "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/ui/azure-subscription-picker.mjs",
@@ -65,8 +66,8 @@
   },
   "build": {
     "esbuild": "0.25.12",
-    "lockSha256": "6962eb7b78a3823529c4677ba5da2b58ea79df2c520df94b802d11a2a86f804b",
-    "inputSha256": "2a78527254c41d8dd46783b9a9e3df924d9e1869b7b88ca69c93c124d431cc78"
+    "lockSha256": "687d1e8ad94028919bd8cee0a911f63cdeb2d0947e4094e5b881fb5bbda10242",
+    "inputSha256": "6cc65f9242ad4d504d8acaf3357e5421d75cc59c3a399e7d0aa206e1f4345c47"
   },
   "dependencies": [
     {
@@ -318,6 +319,11 @@
       "file": "com.github.copilot/extensions/azure-cost-health-check/assets/echarts.min.js",
       "route": "assets/echarts.min.js",
       "mime": "text/javascript; charset=utf-8"
+    },
+    {
+      "file": "com.github.copilot/extensions/azure-cost-health-check/assets/plugin-icon.png",
+      "route": "assets/plugin-icon.png",
+      "mime": "image/png"
     },
     {
       "file": "com.github.copilot/extensions/azure-cost-health-check/assets/toolkit/icons/Subscription.svg",
