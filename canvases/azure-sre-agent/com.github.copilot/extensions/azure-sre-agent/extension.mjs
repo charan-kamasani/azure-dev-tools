@@ -850,6 +850,12 @@ var PRIVATE_CONNECTOR_HTTP_ROUTES = /* @__PURE__ */ new Set([
   "/attach-connector-namespace-mcp",
   "/detach-connector"
 ]);
+function shortError2(error) {
+  const message = shortError(error);
+  const guidance = "Connection failed. Check your VPN and network connection, then retry.";
+  if (!/\bfetch failed\b/i.test(message) || message.startsWith(guidance)) return message;
+  return `${guidance} Details: ${message}`;
+}
 function connectorOwnerKey(objectId) {
   const normalized = String(objectId || "").trim().toLowerCase();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(normalized)) return "";
@@ -884,7 +890,7 @@ async function azLogged(entry, args, subscription, meta) {
     cmdEnd(entry, item, { ok: true, note: meta && meta.done || "ok" });
     return out;
   } catch (err) {
-    cmdEnd(entry, item, { ok: false, note: shortError(err) });
+    cmdEnd(entry, item, { ok: false, note: shortError2(err) });
     throw err;
   }
 }
@@ -912,7 +918,7 @@ async function listSubscriptions(force = false, entry) {
     subs.sort((a, b) => a.isDefault === b.isDefault ? 0 : a.isDefault ? -1 : 1);
     return subs;
   } catch (err) {
-    if (item) cmdEnd(entry, item, { ok: false, note: shortError(err) });
+    if (item) cmdEnd(entry, item, { ok: false, note: shortError2(err) });
     throw err;
   }
 }
@@ -1573,7 +1579,7 @@ async function finishDelegatedKustoMcp(agent, pending, subscription, entry) {
     const tokenScope = await discoverMcpTokenScope(endpoint);
     registration = await registerGenericMcp(agent, mcpName, endpoint, tokenScope, subscription, entry);
   } catch (err) {
-    namespaceMcp.attachmentStatus = `MCP registration failed: ${shortError(err)}`;
+    namespaceMcp.attachmentStatus = `MCP registration failed: ${shortError2(err)}`;
     entry.connectors = await listConnectors(agent, subscription, entry).catch(() => entry.connectors);
     entry.status = `Created Connector Namespace MCP ${mcpName}, but it is not attached or usable from SRE Agent. ${namespaceMcp.attachmentStatus}`;
     broadcast(entry, "state", snapshot(entry));
@@ -1584,7 +1590,7 @@ async function finishDelegatedKustoMcp(agent, pending, subscription, entry) {
       endpoint,
       attached: false,
       platformBlocker: namespaceMcp.attachmentStatus,
-      registrationError: shortError(err)
+      registrationError: shortError2(err)
     };
   }
   namespaceMcp.attached = true;
@@ -1691,7 +1697,7 @@ async function dataPlaneFetch(agent, subscription, method, urlPath, body, entry,
       signal: agent.external ? AbortSignal.timeout(2e4) : void 0
     });
   } catch (err) {
-    cmdEnd(entry, cmd, { ok: false, note: shortError(err) });
+    cmdEnd(entry, cmd, { ok: false, note: shortError2(err) });
     if (agent.external && err?.name === "TimeoutError") {
       throw new Error("The external agent did not respond within 20 seconds. Check endpoint access or registration propagation and retry.");
     }
@@ -1705,7 +1711,7 @@ async function dataPlaneFetch(agent, subscription, method, urlPath, body, entry,
     parsed = { raw: text };
   }
   if (!res.ok) {
-    const message = shortError(new Error(parsed?.message || parsed?.error || text || `HTTP ${res.status}`));
+    const message = shortError2(new Error(parsed?.message || parsed?.error || text || `HTTP ${res.status}`));
     cmdEnd(entry, cmd, { ok: false, note: `HTTP ${res.status}: ${message}` });
     const accessHint = agent.external && (res.status === 401 || res.status === 403) ? " Verify that this Entra user can open the registered external agent in Portal; access changes may take about 15 minutes to propagate." : "";
     throw new Error(`${method} ${urlPath} failed (${res.status}): ${message}${accessHint}`);
@@ -1742,7 +1748,7 @@ async function currentIdentity(entry) {
     };
     if (item) cmdEnd(entry, item, { ok: true, note: cachedIdentity.displayName });
   } catch (err) {
-    if (item) cmdEnd(entry, item, { ok: false, note: shortError(err) });
+    if (item) cmdEnd(entry, item, { ok: false, note: shortError2(err) });
     throw err;
   }
   return cachedIdentity;
@@ -1919,7 +1925,7 @@ async function grantDurableRoleAssignment(agent, subscription, { resourceId, rol
       { title: `grant ${role} to SRE Agent identity`, purpose: `Create a durable RBAC role assignment (${role}) so ${agent.name}'s execution identity can run this class of command without OBO fallback.` }
     );
   } catch (err) {
-    if (/RoleAssignmentExists|already exists/i.test(shortError(err))) return { alreadyExists: true };
+    if (/RoleAssignmentExists|already exists/i.test(shortError2(err))) return { alreadyExists: true };
     throw err;
   }
 }
@@ -1973,7 +1979,7 @@ async function loadOptionalScheduledTasks(load) {
   try {
     return { tasks: await load(), accessError: "" };
   } catch (error) {
-    if (!/^GET \/api\/v1\/scheduledtasks failed \(403\):.*Access denied by PDP/i.test(shortError(error))) throw error;
+    if (!/^GET \/api\/v1\/scheduledtasks failed \(403\):.*Access denied by PDP/i.test(shortError2(error))) throw error;
     return { tasks: [], accessError: "Scheduled tasks unavailable: access denied by PDP (403)." };
   }
 }
@@ -2023,7 +2029,7 @@ async function resolveAppResource(subscription, resourceIdOrName, entry) {
 }
 async function resourceHealthSummary(resourceId, subscription, entry) {
   const path2 = `${resourceId}/providers/Microsoft.ResourceHealth/availabilityStatuses/current`;
-  const data = await armGet(withApiVersion(path2), subscription, entry, { title: "resource health", purpose: "Pull the current Resource Health status for the target app." }).catch((err) => ({ error: shortError(err) }));
+  const data = await armGet(withApiVersion(path2), subscription, entry, { title: "resource health", purpose: "Pull the current Resource Health status for the target app." }).catch((err) => ({ error: shortError2(err) }));
   if (data?.error) return { availabilityState: "unknown", summary: data.error };
   return {
     availabilityState: data?.properties?.availabilityState || "unknown",
@@ -2163,7 +2169,7 @@ async function fetchAzureAppSettings(resource, subscription, entry) {
     const data2 = await armGet(withApiVersion(resource.id), subscription, entry, {
       title: "get container app (env)",
       purpose: "Read container env vars from the Container App's revision template for the config drift check."
-    }).catch((err) => ({ error: shortError(err) }));
+    }).catch((err) => ({ error: shortError2(err) }));
     if (data2?.error) return { error: data2.error, names: [] };
     const containers = data2?.properties?.template?.containers || [];
     const names = /* @__PURE__ */ new Set();
@@ -2182,7 +2188,7 @@ async function fetchAzureAppSettings(resource, subscription, entry) {
     [cliVerb, "config", "appsettings", "list", "--name", resource.name, "--resource-group", resource.resourceGroup, "-o", "json"],
     subscription,
     { title: "list app settings", purpose: "Read the live App Settings configured on this Web App / Function App for the config drift check." }
-  ).catch((err) => ({ error: shortError(err) }));
+  ).catch((err) => ({ error: shortError2(err) }));
   if (data?.error) return { error: data.error, names: [] };
   const list = Array.isArray(data) ? data : [];
   return { names: list.map((entryItem) => entryItem?.name).filter(Boolean) };
@@ -2395,7 +2401,7 @@ function snapshot(entry) {
   try {
     favorites = readFavorites();
   } catch (error) {
-    favoritesError = shortError(error);
+    favoritesError = shortError2(error);
   }
   return {
     favorites,
@@ -2525,7 +2531,7 @@ async function withBusy(entry, statusMessage, fn) {
     const result = await fn();
     return result;
   } catch (err) {
-    entry.error = shortError(err);
+    entry.error = shortError2(err);
     throw err;
   } finally {
     entry.busy = false;
@@ -2727,7 +2733,7 @@ async function startServer(entry) {
     }
     handleRequest(entry, req, res).catch((err) => {
       try {
-        responseJson(res, { ok: false, message: shortError(err) });
+        responseJson(res, { ok: false, message: shortError2(err) });
       } catch {
       }
     });
@@ -2745,7 +2751,10 @@ function azureDiscoveryFailure(error) {
   if (isAzureCliLoginRequiredError(error)) {
     return "Azure CLI is not signed in. Run `az login` in a terminal, then reopen Azure SRE Agent.";
   }
-  return `Azure discovery failed: ${shortError(error)} Check the reported RBAC, network, or Azure API error; do not sign in again unless Azure CLI reports that authentication is required.`;
+  if (/\bfetch failed\b/i.test(shortError(error))) {
+    return shortError2(error);
+  }
+  return `Azure discovery failed: ${shortError2(error)} Check the reported RBAC, network, or Azure API error; do not sign in again unless Azure CLI reports that authentication is required.`;
 }
 async function handleRequest(entry, req, res) {
   const url = new URL(req.url, "http://localhost");
@@ -2772,7 +2781,7 @@ async function handleRequest(entry, req, res) {
       await withBusy(entry, "Completing Kusto sign-in and creating MCP...", async () => confirmDelegatedKustoConsent(entry.agent, code, entry.subscription, entry));
       res.end('<!doctype html><meta charset="utf-8"><title>Azure Data Explorer sign-in</title><p>Sign-in complete. The Kusto MCP was created and attached to your SRE Agent. You can close this window.</p><script>window.close()</script>');
     } catch (err) {
-      entry.error = shortError(err);
+      entry.error = shortError2(err);
       broadcast(entry, "state", snapshot(entry));
       res.end('<!doctype html><meta charset="utf-8"><title>Azure Data Explorer sign-in</title><p>Sign-in completed, but MCP attachment failed. Return to Azure SRE Agent for the exact error.</p>');
     }
@@ -3093,7 +3102,7 @@ async function diagnoseApp(entry, { resourceIdOrName, note, appSubscription }) {
   const resource = await resolveAppResource(targetSubscription, resourceIdOrName, entry);
   if (!resource) throw new Error(`Could not resolve an app resource matching "${resourceIdOrName}".`);
   const health = await resourceHealthSummary(resource.id, targetSubscription, entry);
-  const drift = await checkWorkspaceConfigDrift(resource, targetSubscription, entry).catch((err) => ({ error: shortError(err) }));
+  const drift = await checkWorkspaceConfigDrift(resource, targetSubscription, entry).catch((err) => ({ error: shortError2(err) }));
   entry.configDrift = drift;
   const driftLines = [];
   if (!drift.error && drift.missingInAzure?.length) {
@@ -3459,10 +3468,10 @@ var canvas = createCanvas({
     if (!entry.server) {
       await initSubscriptions(entry).catch((err) => {
         entry.status = azureDiscoveryFailure(err);
-        entry.error = shortError(err);
+        entry.error = shortError2(err);
       });
       if (entry.subscription) await loadAgentsForSub(entry).catch((err) => {
-        entry.error = shortError(err);
+        entry.error = shortError2(err);
       });
       await startServer(entry);
     }
@@ -5055,6 +5064,7 @@ export {
   renderHtml,
   selectAgent,
   selectSavedFavorite,
+  shortError2 as shortError,
   updateFavorite,
   waitForNewAgentReplies
 };

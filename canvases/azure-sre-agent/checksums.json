@@ -15,13 +15,13 @@
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/subscription-picker.mjs": "2da216c34eeb5d62b8c272f930e63af4c27eba7273a93fe3d12ef29adde7111a",
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/telemetry.mjs": "0fef218c4cf6a172a11a5c945e0323eda6859fbada813d48f43c18b7e4c318a8",
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/theme.mjs": "2fd9f29c349f23d7518568d6c087f679c241b42e48780508785965d4c213d03b",
-  "com.github.copilot/extensions/azure-sre-agent/extension.mjs": "f68cc4faf5ab90707aa12f31bb6f5861052d7d1c18ac683ee4d8a0bde62e5cd0",
+  "com.github.copilot/extensions/azure-sre-agent/extension.mjs": "2698e61da0b5539c2756e9ef083716047b2e1e76482366bc996d9f44970ca6a5",
   "com.github.copilot/extensions/azure-sre-agent/studio-package.json": "81a16b8e633ff6d0e26d7455dfd77c48b79508a1fead27d8b6908cef3d82a249",
-  "docs/advanced.md": "2604ed5891a7be4693844899f57cfc407ef942a5c319ee07a0869aadf09dbd89",
+  "docs/advanced.md": "305d258b0ea0493008d8d611c49872f8bd33bd97aafaf68a8c30870b6a264817",
   "docs/preview.png": "0291406a4dc6f855d623c97f712c0e9de3a68b75c0c9a22e059bb56a6235c777",
   "package.json": "4717004c0ebe2b5837871860499a8a5e60d6a08cbc9b84c8299a7c79a6eb43b1",
   "README.md": "d88265fd1b763785219f9ef3ec030377aaaabf30e4b4e7aea2b447af163fff65",
-  "release.json": "5d3aa8e91522942dc309fd87825aa5713b4e2954e437810650eb6109abda8f8d",
+  "release.json": "05ee0f76865157a5e165d2fb75c37160e4597a2c118fef5f8ad74f2d2bc1bb38",
   "skills/azure-sre-agent-canvas/SKILL.md": "14eefced31fd847597b6741e3b9337d5a69aadf5ff2e58ab671bfd92119360dc",
   "THIRD_PARTY_NOTICES.txt": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
 }

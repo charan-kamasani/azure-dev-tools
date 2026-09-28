@@ -68,6 +68,11 @@ a missing canvas.
 - Access to an Azure subscription containing an existing Azure SRE Agent, with
   permission to view and use it. This plugin does not create the agent resource.
 
+If the canvas reports `fetch failed`, a network restriction may be preventing
+access to Azure or the agent endpoint. Check your VPN and network connection,
+then retry. This error alone does not establish that your Azure login or RBAC
+needs changing.
+
 ## Use and safety
 
 You can also ask:
