@@ -39,15 +39,24 @@ The verifier compares all protected files on the default branch to those
 tags, including additions and deletions, and pins each original tag to its
 reviewed commit. Do not rewrite or move old receipts, tags, or versions.
 
-A new Cost Health candidate may use the separately reviewed
+A new candidate for any canvas uses the reviewed
 `schemaVersion: 2`, `mutableDocumentation: true` contract: `release.json` and
 `checksums.json` enumerate protected files only, and its `SHA256SUMS` covers
-those protected files rather than documentation. Pin the receipt's digest and
+those protected files rather than documentation. The verifier selects this
+contract from the release schema, not the product name. Historical schema-v1
+packages keep their original complete inventories and receipts; do not
+convert them in place. Pin the receipt's digest and
 tag; validate both the source export's protected checksums and every protected
 file at the tag and on the default branch. Legal and third-party notices must
 be in protected paths, not under `doc/` or `docs/`. Verify and review the
 complete customer candidate, including its documentation, before the first
 release.
+
+The installed marketplace image `assets/preview.png` and all images/icons
+inside `com.github.copilot/extensions/<product>/` remain protected, even when
+the README also displays them. Only separate inert documentation screenshots
+under package-root `doc/` or `docs/` are mutable. Runtime, skills, manifests,
+release metadata, and legal notices remain protected for every canvas.
 
 Mutable documentation is restricted to plain README/Markdown/text and
 Markdown/text or PNG, JPEG, WebP, GIF, and AVIF files under package-root `doc/` or

@@ -36,7 +36,7 @@ function modified(update) {
   return manifest;
 }
 
-test("requires release tags for full verification, then checks all four plugins", () => {
+test("requires release tags for full verification, then checks every catalog plugin", () => {
   const tags = fixture.plugins.map(({ name, version }) =>
     execFileSync("git", ["tag", "-l", `${name}-v${version.replaceAll(".", "-")}-*`], {
       encoding: "utf8",
@@ -46,21 +46,23 @@ test("requires release tags for full verification, then checks all four plugins"
     return;
   }
   const results = verifyMarketplace(fixture);
-  assert.equal(results.length, 4);
+  assert.equal(results.length, fixture.plugins.length);
   assert.match(results[0], /azure-functions-hosted-skills@0\.5\.3 azure-functions-hosted-skills-v0-5-3-/);
   assert.match(results[1], /azure-resources-query@0\.1\.3 azure-resources-query-v0-1-3-/);
   assert.match(results[2], /canvas-authoring@0\.1\.1 canvas-authoring-v0-1-1-/);
   assert.match(results[3], /azure-cost-health-check@0\.4\.4 azure-cost-health-check-v0-4-4-/);
+  assert.match(results[4], /azure-sre-agent@0\.2\.6 azure-sre-agent-v0-2-6-/);
 });
 
 test("candidate validates every reviewed package and omits only missing immutable tags", () => {
   const candidate = modified((m) => { m.name = "azure-dev-tools"; });
   const results = verifyMarketplace(candidate, { candidate: true });
-  assert.equal(results.length, 4);
+  assert.equal(results.length, candidate.plugins.length);
   assert.match(results[0], /azure-functions-hosted-skills@0\.5\.3 \(candidate; immutable tag pending\)/);
   assert.match(results[1], /azure-resources-query@0\.1\.3 \(candidate; immutable tag pending\)/);
   assert.match(results[2], /canvas-authoring-v0-1-1-8af10f8/);
   assert.match(results[3], /azure-cost-health-check@0\.4\.4 \(candidate; immutable tag pending\)/);
+  assert.match(results[4], /azure-sre-agent@0\.2\.6 \(candidate; immutable tag pending\)/);
 });
 
 test("candidate rejects corrupted protected payloads and checksum receipts", () => {
@@ -236,6 +238,7 @@ test("target tags must identify the package version and a source commit", () => 
     ["azure-resources-query", "0.1.3"],
     ["canvas-authoring", "0.1.1"],
     ["azure-cost-health-check", "0.4.4"],
+    ["azure-sre-agent", "0.2.6"],
   ]) {
     assert.doesNotThrow(() => verifyTagSource(
       name, version, `${name}-v${version.replaceAll(".", "-")}-0123456`,

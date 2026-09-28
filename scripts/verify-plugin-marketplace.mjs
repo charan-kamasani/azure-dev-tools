@@ -38,7 +38,14 @@ const packages = {
     extension: "azure-cost-health-check",
     extensionPath: "com.github.copilot/extensions/azure-cost-health-check",
     receipt: "canvases/azure-cost-health-check/SHA256SUMS",
-    mutableDocumentation: true,
+  },
+  "azure-sre-agent": {
+    path: "canvases/azure-sre-agent",
+    manifest: ".github/plugin/plugin.json",
+    skills: ["./skills/azure-sre-agent-canvas/"],
+    extension: "azure-sre-agent",
+    extensionPath: "com.github.copilot/extensions/azure-sre-agent",
+    receipt: "canvases/azure-sre-agent/SHA256SUMS",
   },
 };
 const combinedPatchProducts = [
@@ -188,7 +195,7 @@ export function verifyMutableDocumentationTrees(current, tagged, readCurrent, re
     for (const entry of tree) {
       if (!isMutableDocument(entry.file) &&
           (executablePath.test(entry.file) || /^skills\/.*\/SKILL\.md$/.test(entry.file)) &&
-          /^(?:extensions|skills)\//.test(entry.file) &&
+          /^(?:(?:com\.github\.copilot\/)?extensions|skills)\//.test(entry.file) &&
           referencesMutableDocument(entry.file, readFile(entry.file).toString("utf8"))) {
         throw new Error(`runtime or skill references mutable documentation: ${entry.file}`);
       }
@@ -235,7 +242,8 @@ export function verifyMutableReleaseMetadata(release, checksums, immutableFiles,
       release.files.some((file) => !payload.includes(file)) ||
       Object.keys(checksums).length !== expectedChecksums.length ||
       expectedChecksums.some((file) => !Object.hasOwn(checksums, file)) ||
-      !immutableFiles.some((file) => file.startsWith("notices/"))) {
+      !immutableFiles.some((file) =>
+        file === "THIRD_PARTY_NOTICES.txt" || file.startsWith("notices/"))) {
     throw new Error("mutable-document release metadata must enumerate only protected payload and notices");
   }
   verifyRuntimeInventory(release);
@@ -400,10 +408,10 @@ function latestHistoricalVersion(name) {
 export function verifyCurrentVersion(name, version) {
   const current = parseVersion(version);
   const historical = packages[name] && latestHistoricalVersion(name);
-  if (!current || !historical) {
+  if (!current || !packages[name]) {
     throw new Error(`${name}@${version}: expected a reviewed product and semantic version`);
   }
-  if (compareVersions(current, historical) < 0) {
+  if (historical && compareVersions(current, historical) < 0) {
     throw new Error(`${name}@${version}: current version must not precede the latest immutable release`);
   }
 }
@@ -431,6 +439,7 @@ export function verifyPlugin({ source, name, version }, { candidate = false } = 
 
   try {
     const packageManifest = JSON.parse(fileAt(revision, `${path}/${product.manifest}`));
+    let mutableDocumentation = false;
     if (packageManifest.name !== name || packageManifest.version !== version) {
       throw new Error("plugin metadata differs from marketplace entry");
     }
@@ -447,7 +456,8 @@ export function verifyPlugin({ source, name, version }, { candidate = false } = 
     if (product.extensionPath) {
       const release = JSON.parse(fileAt(revision, `${path}/release.json`));
       const checksums = JSON.parse(fileAt(revision, `${path}/checksums.json`));
-      if (product.mutableDocumentation) {
+      mutableDocumentation = release.schemaVersion === 2;
+      if (mutableDocumentation) {
         verifyMutableReleaseMetadata(release, checksums, immutableFiles,
           (file) => fileAt(revision, `${path}/${file}`));
       } else {
@@ -536,9 +546,12 @@ export function verifyPlugin({ source, name, version }, { candidate = false } = 
         entries.some(({ file }) => !expectedFiles.includes(file) && !isMutableDocument(file))) {
       throw new Error(`checksum receipt must cover every protected plugin file exactly once`);
     }
+    if (mutableDocumentation && entries.some(({ file }) => isMutableDocument(file))) {
+      throw new Error("schema 2 checksum receipt must contain only protected plugin files");
+    }
     for (const { hash, file } of entries) {
       if (isMutableDocument(file)) continue;
-      const fileRevision = product.mutableDocumentation ? revision : releaseTag ?? revision;
+      const fileRevision = mutableDocumentation ? revision : releaseTag ?? revision;
       if (createHash("sha256").update(fileAt(fileRevision, `${path}/${file}`)).digest("hex") !== hash) {
         throw new Error(`plugin file differs from checksum receipt: ${file}`);
       }

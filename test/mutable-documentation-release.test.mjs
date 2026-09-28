@@ -11,6 +11,9 @@ const image = Buffer.from("89504e470d0a1a0a0000", "hex");
 const files = new Map(Object.entries({
   ".github/plugin/plugin.json": '{"name":"azure-cost-health-check-v3"}',
   "extensions/azure-cost-health-check-v3/extension.mjs": "export const canvasId = 'azure-cost-health-check-v3';",
+  "com.github.copilot/extensions/azure-sre-agent/extension.mjs": "export const canvasId = 'azure-sre-agent';",
+  "com.github.copilot/extensions/azure-sre-agent/assets/icon.png": image,
+  "assets/preview.png": image,
   "skills/azure-cost-health-check-v3/SKILL.md": "# Cost Health\n",
   "notices/chart-LICENSE.txt": "Reviewed vendor license\n",
   "release.json": '{"schemaVersion":2}',
@@ -71,6 +74,8 @@ test("runtime, skill, legal notice, and plugin metadata remain fixed to their hi
   const tagged = snapshot(files);
   for (const file of [
     "extensions/azure-cost-health-check-v3/extension.mjs",
+    "com.github.copilot/extensions/azure-sre-agent/assets/icon.png",
+    "assets/preview.png",
     "skills/azure-cost-health-check-v3/SKILL.md",
     "notices/chart-LICENSE.txt",
     ".github/plugin/plugin.json",
@@ -128,6 +133,11 @@ test("documentation cannot carry executable assets, notices, links, or runtime d
   imported.set("extensions/azure-cost-health-check-v3/extension.mjs",
     "import screenshot from '../../docs/screenshot.png';");
   assert.throws(() => verify(snapshot(imported), snapshot(imported)),
+    /runtime or skill references mutable documentation/);
+  const nestedImport = new Map(files);
+  nestedImport.set("com.github.copilot/extensions/azure-sre-agent/extension.mjs",
+    "const image = new URL('../../../docs/screenshot.png', import.meta.url);");
+  assert.throws(() => verify(snapshot(nestedImport), snapshot(nestedImport)),
     /runtime or skill references mutable documentation/);
   imported.set("extensions/azure-cost-health-check-v3/extension.mjs", files.get(
     "extensions/azure-cost-health-check-v3/extension.mjs"));
