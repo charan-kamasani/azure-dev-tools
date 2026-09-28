@@ -8,13 +8,10 @@ import { test } from "node:test";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const verifier = "scripts/verify-plugin-marketplace.mjs";
-const products = [
-  "canvases/azure-functions-hosted-skills",
-  "canvases/azure-resources-query",
-  "plugins/canvas-authoring",
-  "canvases/azure-cost-health-check",
-  "canvases/azure-sre-agent",
-];
+const products = JSON.parse(readFileSync(new URL("../.github/plugin/marketplace.json", import.meta.url)))
+  .plugins.map(({ source }) => source);
+const costPath = "canvases/azure-cost-health-check";
+const resourcesPath = "canvases/azure-resources-query";
 const pixel = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==",
   "base64",
@@ -34,7 +31,7 @@ test("legacy tagged receipts stay historical while each product's docs change on
     copyFileSync(join(root, verifier), join(clone, verifier));
     git("config", "user.name", "Release policy test");
     git("config", "user.email", "release-policy@example.invalid");
-    assert.doesNotThrow(verify, "all five products pass candidate verification");
+    assert.doesNotThrow(verify, "all catalog products pass candidate verification");
 
     for (const path of products) {
       const readme = join(clone, path, "README.md");
@@ -52,38 +49,38 @@ test("legacy tagged receipts stay historical while each product's docs change on
       assert.doesNotThrow(verify, path);
     }
 
-    const costRuntime = join(clone, products[3],
+    const costRuntime = join(clone, costPath,
       "com.github.copilot/extensions/azure-cost-health-check/extension.mjs");
     const originalCostRuntime = readFileSync(costRuntime);
     writeFileSync(costRuntime, Buffer.concat([originalCostRuntime, Buffer.from("\n// Tampered runtime\n")]));
-    git("add", "--", products[3]);
+    git("add", "--", costPath);
     git("commit", "--quiet", "-m", "Test Cost protected runtime tampering");
     assert.throws(verify, /protected release checksum differs|plugin file differs from checksum receipt/);
     writeFileSync(costRuntime, originalCostRuntime);
-    git("add", "--", products[3]);
+    git("add", "--", costPath);
     git("commit", "--quiet", "-m", "Restore Cost runtime");
     assert.doesNotThrow(verify, "restored Cost package matches synthetic release tag");
 
-    const runtime = join(clone, products[1],
+    const runtime = join(clone, resourcesPath,
       "com.github.copilot/extensions/azure-resources-query/extension.mjs");
     const originalRuntime = readFileSync(runtime);
     writeFileSync(runtime, Buffer.concat([originalRuntime, Buffer.from("\n// Tampered runtime\n")]));
-    git("add", "--", products[1]);
+    git("add", "--", resourcesPath);
     git("commit", "--quiet", "-m", "Test protected runtime tampering");
     assert.throws(verify, /release inventory or checksums differ|plugin file differs from checksum receipt/);
 
     writeFileSync(runtime, originalRuntime);
-    const unreviewed = join(clone, products[1],
+    const unreviewed = join(clone, resourcesPath,
       "com.github.copilot/extensions/azure-resources-query/unreviewed.mjs");
     writeFileSync(unreviewed, "export const unreviewed = true;\n");
-    git("add", "--", products[1]);
+    git("add", "--", resourcesPath);
     git("commit", "--quiet", "-m", "Test protected file addition");
     assert.throws(verify, /release inventory or checksums differ|checksum receipt must cover/);
 
     rmSync(unreviewed);
-    const receipt = join(clone, products[1], "SHA256SUMS");
+    const receipt = join(clone, resourcesPath, "SHA256SUMS");
     writeFileSync(receipt, readFileSync(receipt, "utf8").split("\n").slice(1).join("\n"));
-    git("add", "--", products[1]);
+    git("add", "--", resourcesPath);
     git("commit", "--quiet", "-m", "Test current candidate receipt tampering");
     assert.throws(verify, /checksum receipt must cover every protected plugin file exactly once/);
   } finally {
