@@ -11,6 +11,9 @@ const customerDocs = [
   "docs/azure-resources-query/README.md",
   "canvases/azure-functions-hosted-skills/README.md",
   "canvases/azure-resources-query/README.md",
+  "canvases/azure-sre-agent/README.md",
+  "canvases/azure-sre-agent/docs/advanced.md",
+  "canvases/azure-sre-agent/skills/azure-sre-agent-canvas/SKILL.md",
   "canvases/azure-functions-hosted-skills/skills/azure-functions-hosted-skills-canvas/SKILL.md",
   "canvases/azure-functions-hosted-skills/skills/azure-functions-hosted-skills-github-daily-digest/SKILL.md",
 ];
@@ -25,7 +28,7 @@ test("customer installation docs identify the production repository, not public 
   }
 });
 
-test("production catalog matches installable plugins in order and leaves planned entry unlinked", () => {
+test("production catalog matches all installable plugins in order", () => {
   const readme = readFileSync(new URL("README.md", root), "utf8");
   const rows = readme.split("\n").filter((line) => line.startsWith("| ["));
   const products = {
@@ -33,6 +36,7 @@ test("production catalog matches installable plugins in order and leaves planned
     "azure-resources-query": ["Azure Resources Query", "canvases/azure-resources-query/"],
     "canvas-authoring": ["Canvas Authoring", "plugins/canvas-authoring/"],
     "azure-cost-health-check": ["Azure Cost Health Check", "canvases/azure-cost-health-check/"],
+    "azure-sre-agent": ["Azure SRE Agent", "canvases/azure-sre-agent/"],
   };
   assert.equal(rows.length, manifest.plugins.length);
   for (const [index, { name, version }] of manifest.plugins.entries()) {
@@ -42,8 +46,28 @@ test("production catalog matches installable plugins in order and leaves planned
     assert.ok(rows[index].includes(version), `${label}: current catalog version`);
   }
   assert.match(rows[2], /Skill-only plugin, with no canvas panel/);
-  assert.match(readme, /Azure SRE Agent is not distributed from this production marketplace/);
-  assert.doesNotMatch(readme, /\[Azure SRE Agent\]/);
+  assert.match(readme, /copilot plugin install azure-sre-agent@azure-dev-tools/);
+  assert.match(readme, /\[Azure SRE Agent\]\(canvases\/azure-sre-agent\/\)/);
+});
+
+test("SRE package has its catalog identity, official preview logo and customer connection steps", () => {
+  const path = "canvases/azure-sre-agent/";
+  const catalogEntry = manifest.plugins.find(({ name }) => name === "azure-sre-agent");
+  const plugin = JSON.parse(readFileSync(new URL(`${path}.github/plugin/plugin.json`, root)));
+  const release = JSON.parse(readFileSync(new URL(`${path}release.json`, root)));
+  const readme = readFileSync(new URL(`${path}README.md`, root), "utf8");
+  assert.equal(plugin.name, "azure-sre-agent");
+  assert.equal(plugin.version, catalogEntry.version);
+  assert.equal(plugin.description, catalogEntry.description);
+  assert.deepEqual(plugin.skills, ["./skills/azure-sre-agent-canvas/"]);
+  assert.equal(plugin.extensions["com.github.copilot"].logo, "assets/preview.png");
+  assert.equal(release.publicationRepository, "microsoft/azure-dev-tools");
+  assert.equal(release.plugin.extension.entry,
+    "com.github.copilot/extensions/azure-sre-agent/extension.mjs");
+  assert.match(readme, /Open an agent by URL or resource ID/);
+  assert.match(readme, /Save connected agent/);
+  assert.match(readme, /My app is failing/);
+  assert.match(readme, /microsoft\/azure-dev-tools/);
 });
 
 test("Cost Health package and customer README match the current catalog", () => {
