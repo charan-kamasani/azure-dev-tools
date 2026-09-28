@@ -9,19 +9,21 @@ investigation, and continue from its active thread.
 
 ## Install
 
-When **Azure SRE Agent** appears in the Microsoft production marketplace,
-open GitHub Copilot **Customize → Plugins**, add **microsoft/azure-dev-tools**
-(ID `azure-dev-tools`), and install **Azure SRE Agent** with its
-`azure-sre-agent-canvas` routing skill:
+Azure SRE Agent 0.2.6 is published at the immutable production tag
+[`azure-sre-agent-v0-2-6-0a0c03b`](https://github.com/microsoft/azure-dev-tools/tree/azure-sre-agent-v0-2-6-0a0c03b).
+To try the full plugin, open GitHub Copilot **Customize → Plugins**, add
+**microsoft/azure-dev-tools** (ID `azure-dev-tools`), and install
+**Azure SRE Agent** with its `azure-sre-agent-canvas` routing skill:
 
 ```sh
 copilot plugin marketplace add microsoft/azure-dev-tools
 copilot plugin install azure-sre-agent@azure-dev-tools
 ```
 
-Reopen Copilot and start a fresh chat. You need Azure CLI signed in and
-access to an existing Azure SRE Agent. For a
-published version pin or canvas-only fallback, see
+This full-plugin marketplace path, fresh-chat routing, and live Azure behavior
+still require manual verification. Reopen Copilot and start a fresh chat. You
+need Azure CLI signed in and access to an existing Azure SRE Agent. For the
+published version pin or the accepted direct canvas-only installation path, see
 [installation alternatives](docs/advanced.md).
 
 ## Try it

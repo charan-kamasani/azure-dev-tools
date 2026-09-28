@@ -6,17 +6,18 @@ Once this repository's marketplace is approved and published, in GitHub
 Copilot App open **Customize → Plugins**, use the gear beside the marketplace
 dropdown to add `microsoft/azure-dev-tools`, then select the
 `azure-dev-tools` marketplace. Install `azure-functions-hosted-skills`,
-`azure-resources-query`, `canvas-authoring`, or `azure-cost-health-check`
-separately **after each product's release gates pass**. Access to this
-repository is required.
+`azure-resources-query`, `canvas-authoring`, `azure-cost-health-check`, or
+`azure-sre-agent` separately **after each product's release gates pass**.
+Access to this repository is required.
 Restart Copilot and verify the installed skills; open a canvas for the Hosted,
-Resources Query, or Cost Health products only. Installation does not
-automatically display a panel: ask Copilot **"Open Azure Resources Query"**,
-**"Open Azure Functions Hosted Skills"**, or **"Open Azure Cost Health Check
-in real mode for my subscription"**. The builder entry is skill-only: use
-the host's native `create-canvas` workflow instead of expecting a builder canvas.
+Resources Query, Cost Health, or SRE Agent products only. Installation does
+not automatically display a panel: ask Copilot **"Open Azure Resources
+Query"**, **"Open Azure Functions Hosted Skills"**, **"Open Azure Cost Health
+Check in real mode for my subscription"**, or **"Open SRE Agent Canvas"**.
+The builder entry is skill-only: use the host's native `create-canvas` workflow
+instead of expecting a builder canvas.
 [GitHub's App guide](https://docs.github.com/en/copilot/how-tos/github-copilot-app/customize-github-copilot-app#adding-plugins)
-documents the registration workflow, but **this marketplace's App install has
+documents the registration workflow, but **full-plugin marketplace install has
 not yet been verified**.
 
 The equivalent full-plugin CLI commands, after marketplace publication, are:
@@ -28,6 +29,7 @@ copilot plugin install azure-functions-hosted-skills@azure-dev-tools
 copilot plugin install azure-resources-query@azure-dev-tools
 copilot plugin install canvas-authoring@azure-dev-tools
 copilot plugin install azure-cost-health-check@azure-dev-tools
+copilot plugin install azure-sre-agent@azure-dev-tools
 copilot plugin list
 copilot skill list
 ```
@@ -42,6 +44,17 @@ The previous 0.5.2/0.1.2 tags remain available. The older immutable
 source-distribution links, **not** this repository's
 production installation target. Native App installation from this
 marketplace has not yet been verified.
+
+Azure SRE Agent 0.2.6 is published at
+[`azure-sre-agent-v0-2-6-0a0c03b`](https://github.com/microsoft/azure-dev-tools/tree/azure-sre-agent-v0-2-6-0a0c03b),
+and `azure-sre-agent-latest` points to the same
+[production commit](https://github.com/microsoft/azure-dev-tools/commit/9f22e637c0289257ff1a3b9cbc3eac73d9403fa9).
+Its
+[immutable nested canvas-only URL](https://github.com/microsoft/azure-dev-tools/tree/azure-sre-agent-v0-2-6-0a0c03b/canvases/azure-sre-agent/com.github.copilot/extensions/azure-sre-agent)
+was accepted by the GitHub App installer in an isolated session. This confirms
+direct canvas-only installer acceptance, not full-plugin marketplace
+consumption, fresh-chat routing through `azure-sre-agent-canvas`, or live Azure
+behavior.
 
 Cost Health 0.4.3 was exported from
 the exact [merged source main revision](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/b3551729b5d1e6377283efd1a012fa523e0c8aac)
