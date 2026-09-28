@@ -152,7 +152,7 @@ its three immutable tags were published only after merge. Each
 builder version's 26 plugin bytes have their own pinned receipt in
 `docs/canvas-authoring/SHA256SUMS`. Native marketplace/App installation
 remains unverified. The test fixture in
-`test/fixtures/marketplace.candidate.json` exercises the four-product candidate shape,
+`test/fixtures/marketplace.candidate.json` exercises the five-product candidate shape,
 not an installation catalog.
 
 Entries use same-repository `canvases/<product>` or

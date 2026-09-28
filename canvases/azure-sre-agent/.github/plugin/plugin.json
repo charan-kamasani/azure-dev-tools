@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "azure-sre-agent",
+  "version": "0.2.6",
+  "description": "Azure SRE Agent canvas for diagnosing failing Azure apps, correlating ICM/S360 tickets, and operating Azure SRE Agent resources.",
+  "extensions": {
+    "com.github.copilot": {
+      "logo": "assets/preview.png"
+    }
+  },
+  "skills": [
+    "./skills/azure-sre-agent-canvas/"
+  ]
+}

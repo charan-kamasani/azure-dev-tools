@@ -1,7 +1,8 @@
 # Azure Developer Tools
 
 Install Azure-focused GitHub Copilot plugins that help you build Hosted Skills,
-inspect Azure resources, review cost health, and create canvas apps.
+inspect Azure resources, diagnose apps with SRE Agent, review cost health,
+and create canvas apps.
 
 ## Install a plugin
 
@@ -17,6 +18,7 @@ Then install the plugin you need:
 copilot plugin install azure-functions-hosted-skills@azure-dev-tools
 copilot plugin install azure-resources-query@azure-dev-tools
 copilot plugin install azure-cost-health-check@azure-dev-tools
+copilot plugin install azure-sre-agent@azure-dev-tools
 copilot plugin install canvas-authoring@azure-dev-tools
 ```
 
@@ -34,10 +36,11 @@ the reproducible install points:
 | [Azure Resources Query](canvases/azure-resources-query/) | Find and inspect Azure resources with read-only Resource Graph queries. | Marketplace candidate 0.1.3 is on main; its immutable 0.1.3 tag is not published. `azure-resources-query-latest` still points to 0.1.2. |
 | [Canvas Authoring](plugins/canvas-authoring/) | Add toolkit setup and starter apps to the native `create-canvas` workflow. | 0.1.1 is tagged; `canvas-authoring-latest` points to that release. Skill-only plugin, with no canvas panel. |
 | [Azure Cost Health Check](canvases/azure-cost-health-check/) | Review spend, forecasts, budgets, alerts, recommendations, and AI billing. | Marketplace candidate 0.4.4 is under review; its immutable 0.4.4 tag is not published. `azure-cost-health-check-latest` still points to 0.4.3. |
+| [Azure SRE Agent](canvases/azure-sre-agent/) | Connect to your SRE Agent, diagnose failing apps, and investigate threads. | Marketplace candidate 0.2.6; its immutable tag is not published yet. |
 
-Azure SRE Agent is not distributed from this production marketplace.
-Repository registration and native App installation were not reverified by
-this documentation-only update.
+Marketplace installation and native App canvas discovery must be confirmed in
+GitHub Copilot after the production PR merges; a source package alone does
+not establish that the listing is live.
 
 ## Start with a useful prompt
 
@@ -53,6 +56,10 @@ this documentation-only update.
 **Cost Health Check**
 
 > Open Azure Cost Health Check in real mode for my subscription.
+
+**Azure SRE Agent**
+
+> My app is failing. Open SRE Agent Canvas so I can investigate it.
 
 **Canvas Authoring**
 

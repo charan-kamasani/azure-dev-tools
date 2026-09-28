@@ -31,6 +31,12 @@
       "description": "Review Azure spend, forecasts, native alerts, and AI billing with a read-only canvas and launcher skill.",
       "version": "0.4.4",
       "source": "canvases/azure-cost-health-check"
+    },
+    {
+      "name": "azure-sre-agent",
+      "description": "Azure SRE Agent canvas for diagnosing failing Azure apps, correlating ICM/S360 tickets, and operating Azure SRE Agent resources.",
+      "version": "0.2.6",
+      "source": "canvases/azure-sre-agent"
     }
   ]
 }

@@ -13,6 +13,7 @@ const products = [
   "canvases/azure-resources-query",
   "plugins/canvas-authoring",
   "canvases/azure-cost-health-check",
+  "canvases/azure-sre-agent",
 ];
 const pixel = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==",
@@ -33,7 +34,7 @@ test("legacy tagged receipts stay historical while each product's docs change on
     copyFileSync(join(root, verifier), join(clone, verifier));
     git("config", "user.name", "Release policy test");
     git("config", "user.email", "release-policy@example.invalid");
-    assert.doesNotThrow(verify, "all four products pass candidate verification");
+    assert.doesNotThrow(verify, "all five products pass candidate verification");
 
     for (const path of products) {
       const readme = join(clone, path, "README.md");

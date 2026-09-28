@@ -40,6 +40,14 @@ const packages = {
     receipt: "canvases/azure-cost-health-check/SHA256SUMS",
     mutableDocumentation: true,
   },
+  "azure-sre-agent": {
+    path: "canvases/azure-sre-agent",
+    manifest: ".github/plugin/plugin.json",
+    skills: ["./skills/azure-sre-agent-canvas/"],
+    extension: "azure-sre-agent",
+    extensionPath: "com.github.copilot/extensions/azure-sre-agent",
+    receipt: "canvases/azure-sre-agent/SHA256SUMS",
+  },
 };
 const combinedPatchProducts = [
   "azure-functions-hosted-skills",
@@ -400,10 +408,10 @@ function latestHistoricalVersion(name) {
 export function verifyCurrentVersion(name, version) {
   const current = parseVersion(version);
   const historical = packages[name] && latestHistoricalVersion(name);
-  if (!current || !historical) {
+  if (!current || !packages[name]) {
     throw new Error(`${name}@${version}: expected a reviewed product and semantic version`);
   }
-  if (compareVersions(current, historical) < 0) {
+  if (historical && compareVersions(current, historical) < 0) {
     throw new Error(`${name}@${version}: current version must not precede the latest immutable release`);
   }
 }

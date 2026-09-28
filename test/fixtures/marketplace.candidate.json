@@ -23,6 +23,11 @@
       "name": "azure-cost-health-check",
       "version": "0.4.4",
       "source": "canvases/azure-cost-health-check"
+    },
+    {
+      "name": "azure-sre-agent",
+      "version": "0.2.6",
+      "source": "canvases/azure-sre-agent"
     }
   ]
 }
