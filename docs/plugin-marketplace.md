@@ -5,10 +5,11 @@
 Once this repository's marketplace is approved and published, in GitHub
 Copilot App open **Customize → Plugins**, use the gear beside the marketplace
 dropdown to add `microsoft/azure-dev-tools`, then select the
-`azure-dev-tools` marketplace. Install `azure-functions-hosted-skills`,
-`azure-resources-query`, `canvas-authoring`, `azure-cost-health-check`, or
-`azure-sre-agent` separately **after each product's release gates pass**.
-Access to this repository is required.
+`azure-dev-tools` marketplace. Azure SRE Agent is production-published, so
+install `azure-sre-agent` directly. Install `azure-functions-hosted-skills`,
+`azure-resources-query`, `canvas-authoring`, or `azure-cost-health-check`
+separately **after each product's release gates pass**. Access to this
+repository is required.
 Restart Copilot and verify the installed skills; open a canvas for the Hosted,
 Resources Query, Cost Health, or SRE Agent products only. Installation does
 not automatically display a panel: ask Copilot **"Open Azure Resources
