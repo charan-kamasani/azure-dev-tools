@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "format": "plugin",
   "name": "azure-sre-agent",
   "version": "0.2.6",
+  "mutableDocumentation": true,
   "publicationRepository": "microsoft/azure-dev-tools",
   "plugin": {
     "manifest": ".github/plugin/plugin.json",
@@ -25,14 +26,9 @@
       }
     ]
   },
-  "readmeAssets": [
-    "docs/preview.png",
-    "docs/advanced.md"
-  ],
   "runtimeIdentity": "com.github.copilot/extensions/azure-sre-agent/studio-package.json",
   "files": [
     ".github/plugin/plugin.json",
-    "README.md",
     "THIRD_PARTY_NOTICES.txt",
     "assets/preview.png",
     "com.github.copilot/extensions/azure-sre-agent/assets/azure-sre-agent-color.svg",
@@ -51,8 +47,6 @@
     "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/theme.mjs",
     "com.github.copilot/extensions/azure-sre-agent/extension.mjs",
     "com.github.copilot/extensions/azure-sre-agent/studio-package.json",
-    "docs/advanced.md",
-    "docs/preview.png",
     "package.json",
     "skills/azure-sre-agent-canvas/SKILL.md"
   ],
@@ -65,7 +59,7 @@
   "build": {
     "esbuild": "0.25.12",
     "lockSha256": "687d1e8ad94028919bd8cee0a911f63cdeb2d0947e4094e5b881fb5bbda10242",
-    "inputSha256": "9e8a64c788fcc301662acf611f76cc3c8ce204642985abb5c1bbd214dfb8351d"
+    "inputSha256": "59205247a4ca8e83b8ad5e185f7d306fa14889b384fc61b856b20b4b7413324a"
   },
   "dependencies": [
     {
