@@ -107,31 +107,60 @@ test("current builder install and bundled quickstart do not claim an active rele
 
 test("Hosted customer guide retains installation, launch, first-run, and safety instructions", () => {
   const readme = readFileSync(new URL("canvases/azure-functions-hosted-skills/README.md", root), "utf8");
-  assert.match(readme, /Build and run a local Hosted Skill/);
-  for (const heading of ["Install", "Prerequisites", "First local run", "Invoke an existing Azure Function App", "Troubleshooting", "Safety and authentication"]) {
+  const advanced = readFileSync(new URL("canvases/azure-functions-hosted-skills/docs/advanced.md", root), "utf8");
+  assert.match(readme, /Create and run a local Timer, HTTP, or Queue Hosted Skill/);
+  for (const heading of ["Install", "Try it", "What you can do", "Prompts to try"]) {
     assert.ok(readme.includes(`## ${heading}\n`), `Hosted guide missing ${heading}`);
   }
-  assert.match(readme, /copilot plugin install azure-functions-hosted-skills@azure-dev-tools/);
-  assert.match(readme, /azure-functions-hosted-skills-canvas/);
-  assert.match(readme, /azure-functions-hosted-skills-github-daily-digest/);
-  assert.match(readme, /https:\/\/github\.com\/microsoft\/azure-dev-tools\/tree\/azure-functions-hosted-skills-latest\/canvases\/azure-functions-hosted-skills\/extensions\/azure-functions-hosted-skills/);
-  assert.match(readme, /https:\/\/github\.com\/microsoft\/azure-dev-tools\/blob\/azure-functions-hosted-skills-latest\/canvases\/azure-functions-hosted-skills\/README\.md/);
-  assert.match(readme, /^Open Azure Functions Hosted Skills canvas$/m);
-  assert.match(readme, /^1\. Select \*\*Local Function App\*\*/m);
-  assert.match(readme, /^1\. Select \*\*Azure Function App\*\*/m);
-  assert.match(readme, /This installs the canvas only, not the/);
+  assert.match(readme, /copilot plugin install azure-functions-hosted-skills@awesome-copilot/);
+  assert.match(readme, /full plugin installs\s+the canvas and both launcher skills/);
+  assert.match(readme, /Ask \*\*Open Azure Functions Hosted Skills canvas\*\*/);
+  assert.match(readme, /\*\*Local Function\s+App\*\*/);
+  assert.match(readme, /\*\*Start local function\*\*/);
+  assert.match(readme, /\*\*Invoke Trigger\*\*/);
+  assert.match(readme, /Remote invocation sends a real\s+request.*requires your confirmation/);
+  assert.match(readme, /\[installation notes\]\(docs\/advanced\.md\)/);
+  assert.match(advanced, /git clone --depth 1 --branch "\$HOSTED_SKILLS_TAG" https:\/\/github\.com\/microsoft\/azure-dev-tools\.git/);
+  assert.match(advanced, new RegExp(`exact ${manifest.plugins[0].version.replaceAll(".", "\\.")} pin, wait`));
+  assert.match(advanced, /azure-functions-hosted-skills-canvas/);
+  assert.match(advanced, /azure-functions-hosted-skills-github-daily-digest/);
+  assert.match(advanced, /com\.github\.copilot\/extensions\/azure-functions-hosted-skills/);
+  assert.match(advanced, /The Azure CLI login remains yours/);
+  assert.match(advanced, /This installs the canvas only, not the/);
 });
 
-test("customer guides keep actionable pinned installs without candidate process commentary", () => {
+test("customer guides link to full-plugin and canvas-only installation instructions", () => {
   for (const name of ["azure-functions-hosted-skills", "azure-resources-query"]) {
     const readme = readFileSync(new URL(`canvases/${name}/README.md`, root), "utf8");
-    assert.match(readme, new RegExp(
-      `git clone --depth 1 --branch ${name}-v\\d+-\\d+-\\d+-[0-9a-f]{7,40} https://github\\.com/microsoft/azure-dev-tools\\.git`,
-    ));
-    assert.match(readme, new RegExp(`${name}-latest`));
-    assert.match(readme, /movable/);
-    assert.doesNotMatch(readme, /\bcandidate\b|not published|approved and tagged|do not describe/i);
+    const advanced = readFileSync(new URL(`canvases/${name}/docs/advanced.md`, root), "utf8");
+    assert.match(readme, /\[installation (?:notes|alternatives)\]\(docs\/advanced\.md\)/);
+    assert.match(advanced, /git clone --depth 1 --branch/);
+    assert.match(advanced, new RegExp(`exact ${manifest.plugins.find((plugin) => plugin.name === name).version.replaceAll(".", "\\.")}\\s+pin, wait`));
+    assert.match(advanced, /a planned tag is not an\s+installable ref/);
+    assert.match(advanced, new RegExp(`${name}-latest`));
+    assert.match(advanced, new RegExp(`com\\.github\\.copilot/extensions/${name}`));
+    assert.match(advanced, /canvas only|only the canvas extension/i);
+    assert.match(advanced, /microsoft\/azure-dev-tools/);
   }
+});
+
+for (const skill of [
+  "azure-functions-hosted-skills-canvas",
+  "azure-functions-hosted-skills-github-daily-digest",
+]) {
+  test(`${skill} recovery does not pin the unpublished 0.5.3 release`, () => {
+    const path = `canvases/azure-functions-hosted-skills/skills/${skill}/SKILL.md`;
+    const content = readFileSync(new URL(path, root), "utf8");
+    assert.ok(!/(?:version\s+0\.5\.3|azure-functions-hosted-skills-v0-5-3-)/.test(content),
+      `${path}: recovery must not depend on the unpublished 0.5.3 release`);
+  });
+}
+
+test("Resources recovery does not claim a released package is still a candidate", () => {
+  const path = "canvases/azure-resources-query/skills/azure-resources-query/SKILL.md";
+  const content = readFileSync(new URL(path, root), "utf8");
+  assert.ok(!/this is a packaged candidate,\s+not a publicly released marketplace install/i.test(content),
+    `${path}: recovery must not claim a released package is still a candidate`);
 });
 
 test("new canvas patch tags retain production support documentation", () => {

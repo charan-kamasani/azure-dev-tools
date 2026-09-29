@@ -6,12 +6,12 @@
   "plugins": [
     {
       "name": "azure-functions-hosted-skills",
-      "version": "0.5.3",
+      "version": "0.5.5",
       "source": "canvases/azure-functions-hosted-skills"
     },
     {
       "name": "azure-resources-query",
-      "version": "0.1.3",
+      "version": "0.1.5",
       "source": "canvases/azure-resources-query"
     },
     {

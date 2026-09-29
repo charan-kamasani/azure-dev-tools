@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
+const catalog = JSON.parse(readFileSync(new URL(".github/plugin/marketplace.json", root)));
 function taggedSnapshot(name, version) {
   const tags = execFileSync("git", ["tag", "-l", `${name}-v${version.replaceAll(".", "-")}-*`], {
     cwd: root, encoding: "utf8",
@@ -24,13 +25,9 @@ const versions = {
   "azure-resources-query": "0.1.2",
 };
 
-for (const [name, version, count, receiptHash] of [
-  ["azure-functions-hosted-skills", "0.5.3", 49,
-    "264259ca3530ffeeb97bd52fd704ee3767a563eb5c71a0d0e806200cd80225ad"],
-  ["azure-resources-query", "0.1.3", 99,
-    "e33be5430a138e6005781c24153e9e434f311b44ebfd1c219ae242e0079ac05b"],
-]) {
-  test(`${name} ${version} candidate pins its entire generated Agent Plugins package`, () => {
+for (const name of ["azure-functions-hosted-skills", "azure-resources-query"]) {
+  test(`${name} candidate pins its protected Agent Plugins package`, () => {
+    const version = catalog.plugins.find((plugin) => plugin.name === name).version;
     const packagePath = `canvases/${name}/`;
     const read = (file) => readFileSync(new URL(`${packagePath}${file}`, root));
     const manifest = JSON.parse(read(".github/plugin/plugin.json"));
@@ -38,7 +35,8 @@ for (const [name, version, count, receiptHash] of [
     const metadata = JSON.parse(read("package.json"));
     const checksums = JSON.parse(read("checksums.json"));
     const receipt = read("SHA256SUMS");
-    assert.equal(createHash("sha256").update(receipt).digest("hex"), receiptHash);
+    assert.equal(release.schemaVersion, 2);
+    assert.equal(release.mutableDocumentation, true);
     assert.equal(manifest.$schema, "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
     assert.equal(manifest.version, version);
     assert.equal(release.version, version);
@@ -60,10 +58,10 @@ for (const [name, version, count, receiptHash] of [
       assert.ok(match, `malformed receipt entry: ${line}`);
       return { hash: match[1], file: match[2] };
     });
-    assert.equal(entries.length, count);
     const protectedFiles = files.filter((file) =>
       file !== "SHA256SUMS" && file !== "README.md" && !file.startsWith("docs/"));
-    assert.ok(protectedFiles.every((file) => entries.some((entry) => entry.file === file)));
+    assert.deepEqual(entries.map(({ file }) => file).sort(), protectedFiles.sort());
+    assert.equal(entries.length, Object.keys(checksums).length + 1);
     assert.deepEqual(Object.keys(checksums).sort(), [...release.files, "release.json"].sort());
     for (const { hash, file } of entries) {
       if (!files.includes(file) || file === "README.md" || file.startsWith("docs/")) continue;

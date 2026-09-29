@@ -1281,7 +1281,7 @@ function contract(canvasId, host, versions, actions, controls) {
 var FUNCTION_STUDIO_USAGE_CONTRACT = contract(
   "azure-functions-hosted-skills",
   "copilot_app",
-  ["0.5.0", "0.5.1", "0.5.2", "0.5.3"],
+  ["0.5.0", "0.5.1", "0.5.2", "0.5.3", "0.5.4", "0.5.5"],
   {
     installation_status: usage("installation.status", "installation"),
     set_trigger: usage("trigger.select", "authoring"),

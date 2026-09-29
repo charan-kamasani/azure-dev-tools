@@ -1,6 +1,6 @@
 {
   "name": "azure-functions-hosted-skills",
-  "version": "0.5.3",
+  "version": "0.5.5",
   "private": true,
   "type": "module",
   "main": "com.github.copilot/extensions/azure-functions-hosted-skills/extension.mjs",

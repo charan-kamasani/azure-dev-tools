@@ -34,10 +34,11 @@ copilot skill list
 
 Use this repository's [production package catalog](../README.md) or a
 published source-qualified production tag when following install instructions.
-Hosted Skills 0.5.3 and Azure Resources Query 0.1.3 in the marketplace are
-**untagged candidates**; their `-latest` extension URLs in the package READMEs
-are not 0.5.3/0.1.3 installation targets until approved tags are published.
-The previous 0.5.2/0.1.2 tags remain available. The older immutable
+Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 are **review candidates**;
+their planned immutable tags and the `-latest` extension URLs in the package
+READMEs are not installation targets for these versions until the production
+PR merges and both tags are published. The previous 0.5.2/0.1.2 tags remain
+available; the intervening 0.5.3/0.1.3 candidates were never tagged. The older immutable
 0.5.1/0.1.1 canvas package READMEs retain public
 source-distribution links, **not** this repository's
 production installation target. Native App installation from this
@@ -82,14 +83,33 @@ can build or that native activation was verified.
 
 ## Production release gate
 
-The Hosted Skills 0.5.3 and Azure Resources Query 0.1.3 candidates were built
+The current Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 candidates
+were built from [reviewed source main
+`bf89cc8f67bf15d7fb538336c5482818b4bb5b01`](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/bf89cc8f67bf15d7fb538336c5482818b4bb5b01)
+with `npm run package:plugin -- --repository=microsoft/azure-dev-tools <product>`.
+Their generated customer READMEs and all other emitted package files are
+byte-identical to that build. The production package adds only a protected-file
+`SHA256SUMS` receipt: [Hosted's 48-entry receipt](../canvases/azure-functions-hosted-skills/SHA256SUMS)
+has SHA-256 `01cba2ec84a3599fd6ebc143a2c2679fd90b81f7ad945036eddadede231ed2a8`;
+[Resources' 97-entry receipt](../canvases/azure-resources-query/SHA256SUMS)
+has SHA-256 `92ff2b34f3ee4aa4a4d25ef5aa17eff4410720555b4af58d044340678668ea8d`.
+Their protected `checksums.json` digests are respectively
+`2dc198ffa482973c772723e161db8bc5d76e1988f11d1c9480495ad90d7cad4f`
+and `e9a448a794d025d2dc48e3234c957293287af7adfd49a7f1ffe82b4de8e1e881`.
+The source-qualified `azure-functions-hosted-skills-v0-5-5-bf89cc8` and
+`azure-resources-query-v0-1-5-bf89cc8` tags are planned, not published.
+Strict verification requires real tags after approval
+and the production squash merge.
+
+For historical context, the earlier Hosted Skills 0.5.3 and Azure Resources
+Query 0.1.3 candidates were built
 from [merged source revision b3551729b5d1e6377283efd1a012fa523e0c8aac](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/b3551729b5d1e6377283efd1a012fa523e0c8aac)
 with `npm run package:plugin -- --repository=microsoft/azure-dev-tools <product>`
 in a clean detached checkout. The generated Agent Plugins manifests use
 `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`, preview images
 at `assets/preview.png`, and executable extensions under
 `com.github.copilot/extensions/<product>/extension.mjs`. Hosted's
-[49-file receipt](../canvases/azure-functions-hosted-skills/SHA256SUMS) has
+[49-file receipt](https://github.com/microsoft/azure-dev-tools/blob/a873dfa42ce8e4420b77e94ddca896e8771e3b0c/canvases/azure-functions-hosted-skills/SHA256SUMS) has
 SHA-256 `264259ca3530ffeeb97bd52fd704ee3767a563eb5c71a0d0e806200cd80225ad`.
 Hosted retains the previously released complete customer guide as a
 **disclosed README-only documentation overlay**, updated for version 0.5.3
@@ -103,7 +123,7 @@ to private `7ac6a3d8b24083b656066ad3561ff1a485ad7fde2e9b177d9d6c289fe17d97ef`.
 All other 47 source-generated Hosted files, including extension runtime,
 skills, preview, notices, release metadata and manifest, remain byte-identical;
 the private package adds only its in-package `SHA256SUMS`.
-ARG's [99-file receipt](../canvases/azure-resources-query/SHA256SUMS) has
+ARG's [99-file receipt](https://github.com/microsoft/azure-dev-tools/blob/a873dfa42ce8e4420b77e94ddca896e8771e3b0c/canvases/azure-resources-query/SHA256SUMS) has
 SHA-256 `e33be5430a138e6005781c24153e9e434f311b44ebfd1c219ae242e0079ac05b`.
 Run `node scripts/verify-plugin-marketplace.mjs --candidate` on a committed
 candidate: it verifies the new manifests, complete file receipts, release

@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "format": "plugin",
   "name": "azure-resources-query",
-  "version": "0.1.3",
+  "version": "0.1.5",
+  "mutableDocumentation": true,
   "publicationRepository": "microsoft/azure-dev-tools",
   "plugin": {
     "manifest": ".github/plugin/plugin.json",
@@ -26,12 +27,8 @@
       }
     ]
   },
-  "readmeAssets": [
-    "docs/resources-fixture.png"
-  ],
   "files": [
     ".github/plugin/plugin.json",
-    "README.md",
     "THIRD_PARTY_NOTICES.txt",
     "assets/preview.png",
     "com.github.copilot/extensions/azure-resources-query/assets/Resource-Graph-Explorer.provenance.json",
@@ -123,7 +120,6 @@
     "com.github.copilot/extensions/azure-resources-query/ui/client.js",
     "com.github.copilot/extensions/azure-resources-query/ui/index.html",
     "com.github.copilot/extensions/azure-resources-query/ui/styles.css",
-    "docs/resources-fixture.png",
     "package.json",
     "skills/azure-resources-query/SKILL.md",
     "skills/azure-resources-query/resolve-canvas-launch.mjs"
@@ -136,8 +132,8 @@
   },
   "build": {
     "esbuild": "0.25.12",
-    "lockSha256": "6962eb7b78a3823529c4677ba5da2b58ea79df2c520df94b802d11a2a86f804b",
-    "inputSha256": "2855019b08d6eca50e312ab996ee05f187568d34cf14f7762fc33237a6a57275"
+    "lockSha256": "0172a79caa720e5eac81e6db0c203ab705ea3aecbe5fada39cb48f954fe78488",
+    "inputSha256": "aeee661ffdbf99450dbf1d9430d70857cb0fa4b81c1ea70b65d9f5a686a2b58b"
   },
   "dependencies": [
     {

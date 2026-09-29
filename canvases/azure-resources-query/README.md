@@ -1,129 +1,46 @@
 # Azure Resources Query
 
-Find Azure resources in GitHub Copilot, inspect their details, and add a selected set to your conversation. Azure Resources Query runs read-only Azure Resource Graph (ARG) queries in the subscriptions you choose; results stay in a browsable panel instead of filling your chat with a table.
+Find Azure resources with read-only Resource Graph queries, inspect results in
+the panel, and add selected resources to chat without dumping an inventory.
 
-![Azure Resources Query with the Resource Graph Explorer icon and a Function Apps in Development view, one resource selected, and Add to chat available. Synthetic fixture data only.](docs/resources-fixture.png)
+![Illustrative Azure Resources Query panel with synthetic Function App results, one selected resource, and Add to chat.](docs/resources-fixture.png)
 
-*Example panel with sample resources, not your Azure data.*
-
-The product name and Resource Graph Explorer icon stay visible as you switch
-queries; the current view's title appears underneath. The panel follows your
-host theme.
+*Illustrative fixture data, not a live Azure subscription.*
 
 ## Install
 
-### Install the full plugin
-
-If your GitHub Copilot host can access this marketplace, open
-**Customize > Plugins** in the GitHub Copilot App. Use the marketplace gear to add
-`microsoft/azure-dev-tools` (ID `azure-dev-tools`), then install **Azure
-Resources Query** (`azure-resources-query`). This installs the full plugin,
-including the canvas and launcher skill. Fully quit GitHub Copilot, reopen the
-app, start a new chat, and ask exactly:
-
-> Open the Azure Resources Query canvas.
-
-Check **Plugin skills** for the Azure Resources Query launcher skill.
-
-#### Optional: pin the full plugin to an exact version
-
-The pinned immutable 0.1.2 release installs the full plugin, including its
-launcher skill:
+If your GitHub Copilot host shows the **awesome-copilot** marketplace, open
+**Customize → Plugins** and install **Azure Resources Query**. The
+[0.1.3 production package](https://github.com/microsoft/azure-dev-tools/tree/a873dfa42ce8e4420b77e94ddca896e8771e3b0c/canvases/azure-resources-query)
+is an earlier build; check the marketplace listing for the version it offers now.
+This installs the full plugin: the canvas and its launcher skill.
+If the marketplace is missing, add it first:
 
 ```sh
-git clone --depth 1 --branch azure-resources-query-v0-1-2-8af10f8 https://github.com/microsoft/azure-dev-tools.git azure-resources-query-plugin
-copilot plugin install ./azure-resources-query-plugin/canvases/azure-resources-query
+copilot plugin marketplace add github/awesome-copilot
+copilot plugin install azure-resources-query@awesome-copilot
 ```
 
-Fully quit and reopen GitHub Copilot, start a new chat, use the open-canvas
-prompt above, and check **Plugin skills**. The movable
-`azure-resources-query-latest` tag also points to this published release.
-
-**Canvas-only fallback (no launcher skill):** If the full plugin is not listed,
-choose **Customize > Canvases > Install from gist/URL** in the GitHub Copilot
-App and paste the latest nested canvas extension URL:
-
-```text
-https://github.com/microsoft/azure-dev-tools/tree/azure-resources-query-latest/canvases/azure-resources-query/extensions/azure-resources-query
-```
-
-This URL targets the published 0.1.2 extension layout, and the `-latest` tag is
-movable. The URL installs **only the canvas extension**, not the launcher
-skill. If your team gave you a link to a specific version, use that link
-instead. Install the folder containing `extension.mjs`, fully quit and reopen
-GitHub Copilot, start a new chat, and use the open-canvas prompt above. Do not
-install this fallback alongside the full plugin; duplicate providers can
-conflict.
-
-### Prerequisites
-
-- A canvas-capable GitHub Copilot App with Node.js 22 or newer.
-- Azure CLI 2.61 or newer on the extension provider's PATH.
-- An Azure account with read access to the subscriptions and resource details
-  you need. Sign in with `az login` or use **Azure connection > Sign in** in
-  the canvas; opening it never signs in automatically.
+Reopen Copilot and start a new chat. Requires Azure CLI 2.61+ and Azure read
+access. See
+[installation alternatives](docs/advanced.md) for an exact version or a
+canvas-only URL.
 
 ## Try it
 
-Ask Copilot:
-
-> Show my Function Apps in Development.
-
-Then refine the same view:
-
-> Only those in West Europe.
-
-Or start another resource list:
-
-> Show storage accounts in Development.
-
-Replace **Development** with your subscription name or ID. You can also list Web Apps, VMs, or other resources supported by ARG. Copilot writes the KQL; **Query details** shows the exact query behind the displayed results.
+Ask: **Show my Function Apps in Development** (replace Development with your
+subscription). Confirm the scope in the panel; an unscoped request never
+silently selects subscriptions. Open a result to inspect details, select rows,
+then choose **Add to chat**. Refine with **Only those in West Europe**.
 
 ## What you can do
 
-- Find Function Apps, VMs, storage accounts, and other Azure resources with
-  read-only Resource Graph queries.
-- Confirm subscription scope before results appear, then inspect ARM details.
-- Select only the resources you need and add them to chat without pasting a
-  full inventory.
+- Find Function Apps, VMs, or storage accounts with read-only Resource Graph queries.
+- Confirm subscription scope in the panel before results appear.
+- Inspect resources and add selected rows to chat without pasting an inventory.
 
-## First run: scope, inspect, select, add to chat
+## Prompts to try
 
-1. **Confirm scope.** Ask for a list. Without a named subscription, choose
-   **Continue** to confirm an eligible CLI default, or choose subscriptions in
-   the panel. Nothing is preselected or silently accepted. A unique enabled
-   named match can run immediately; ambiguous names require a choice.
-   Confirmation runs the supplied query once. Cancel stops it.
-2. **Inspect.** Click a resource name to see its query fields and read-only ARM
-   details. Use **Back to results** to return. **Copy ID** and **Open in portal**
-   are available per resource.
-3. **Select.** Check individual resources or **Select loaded rows**. Selection
-   applies to loaded rows, not every unseen result. Use **Load more** when
-   available and review any incomplete-results warning.
-4. **Add to chat.** Click **Add to chat** to share the selected resource context
-   with Copilot. Selection is context, not permission to change those resources.
+> Show my Function Apps in Development.
 
-Follow-up requests keep the current scope and refine the query. **Change**
-lets you choose a different scope; **Apply** runs the current query in that
-scope. **Rerun query** refreshes the displayed inventory. Sign-in/profile reload
-does not rerun it automatically.
-
-## Troubleshooting
-
-| Symptom | What to check |
-| --- | --- |
-| Azure CLI not found | Install Azure CLI 2.61+ and ensure `az` is on the provider's PATH, not just a terminal alias. Reload the host after correcting its environment. |
-| Sign-in required or wrong account | Sign in explicitly, then **Reload CLI profile** after an external CLI change. **Refresh from Azure** is separate and can update the shared CLI profile. Neither runs KQL. |
-| Permission denied | Check the account, tenant and selected subscriptions. Ask your administrator for the required read access; this canvas does not grant roles. An ARG result does not guarantee permission to read every resource's ARM details. |
-| No matching subscriptions | Check the name/ID and enabled status. This is unresolved scope, not proof that there are no resources. |
-| No results | Review the executed KQL, selected subscriptions and location criteria. Zero rows means no resources visible to your account matched this query; ARG can lag recent changes. |
-| Panel missing or old panel reappears | Inspect the enabled provider, reload extensions once, and retry only if the canonical canvas is registered. An existing panel stays bound to its old provider; close it or use a fresh chat after correcting installation. |
-
-## Replace or roll back
-
-If you installed the complete plugin from a local checkout, follow your host's
-local-plugin update instructions and keep the previous checkout until the new
-one works. Do not mix files from different plugin versions. If you installed
-the extension directly, close its panel and replace the **whole** extension
-folder, not individual files; restore the previous whole folder to roll back.
-Keep your saved views and do not delete `files/azure-resource-browser`.
+> Show my storage accounts in Development, then filter to West Europe.

@@ -87,10 +87,13 @@ create a second user extension link, or install npm dependencies.
 If recovery fails, report the actual error and give the full-plugin
 reinstallation steps, then stop:
 
-1. When the `microsoft/azure-dev-tools` marketplace lists version 0.5.3,
-   use GitHub Copilot **Customize → Plugins → marketplace gear → add
-   `microsoft/azure-dev-tools` (ID `azure-dev-tools`) → install Azure Functions
-   Hosted Skills**. This installs the canvas and both launcher skills.
+1. For a version actually published in the `microsoft/azure-dev-tools`
+   marketplace, use GitHub Copilot **Customize → Plugins → marketplace gear →
+   add `microsoft/azure-dev-tools` (ID `azure-dev-tools`) → install Azure
+   Functions Hosted Skills**. This installs the canvas and both launcher skills.
+   For an approved candidate not yet published there, follow the release
+   owner's candidate instructions instead. For an exact published version, use
+   a published immutable tag as described below; never use a planned ref.
 2. Fully quit and reopen GitHub Copilot, start a fresh chat, and confirm
    `azure-functions-hosted-skills-canvas` and
    `azure-functions-hosted-skills-github-daily-digest` are available.
@@ -99,14 +102,22 @@ reinstallation steps, then stop:
 After marketplace publication, the equivalent CLI commands are
 `copilot plugin marketplace add microsoft/azure-dev-tools` and
 `copilot plugin install azure-functions-hosted-skills@azure-dev-tools`.
-If the marketplace is not listed yet, optionally install the full plugin from
-the exact published immutable 0.5.3 versioned/source-qualified tag: set
-`HOSTED_SKILLS_TAG` to
-`azure-functions-hosted-skills-v0-5-3-<source-qualifier>` with the release's
-exact qualifier, then run
-`git clone --depth 1 --branch "$HOSTED_SKILLS_TAG" https://github.com/microsoft/azure-dev-tools.git azure-functions-hosted-skills-plugin`
-and
-`copilot plugin install ./azure-functions-hosted-skills-plugin/canvases/azure-functions-hosted-skills`.
+For an exact version (or if the marketplace is unavailable), choose a
+published immutable tag from the
+[production tag list](https://github.com/microsoft/azure-dev-tools/tags) starting
+with `azure-functions-hosted-skills-v`. Copy its complete name, including the
+source qualifier. The published `azure-functions-hosted-skills-v0-5-2-8af10f8`
+is an older full-plugin release. For an exact 0.5.5 pin, wait until its tag
+appears; a planned tag is not an installable ref. Verify the chosen ref before
+cloning:
+
+```sh
+printf 'Paste the full published Azure Functions Hosted Skills tag: '
+read -r HOSTED_SKILLS_TAG
+git ls-remote --exit-code --refs --tags https://github.com/microsoft/azure-dev-tools.git "refs/tags/$HOSTED_SKILLS_TAG" >/dev/null || { printf 'Tag is not published in production\n' >&2; exit 1; }
+git clone --depth 1 --branch "$HOSTED_SKILLS_TAG" https://github.com/microsoft/azure-dev-tools.git azure-functions-hosted-skills-plugin
+copilot plugin install ./azure-functions-hosted-skills-plugin/canvases/azure-functions-hosted-skills
+```
 
 > **Canvas-only fallback:** If the full plugin is unavailable, use
 > **Customize → Canvases → Install from gist/URL** with the nested

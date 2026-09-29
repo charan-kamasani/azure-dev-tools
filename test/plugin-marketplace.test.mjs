@@ -27,8 +27,13 @@ import {
 } from "../scripts/verify-plugin-marketplace.mjs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/marketplace.candidate.json", import.meta.url)));
+const catalog = JSON.parse(readFileSync(new URL("../.github/plugin/marketplace.json", import.meta.url)));
 const root = fileURLToPath(new URL("../", import.meta.url));
 const verifier = "scripts/verify-plugin-marketplace.mjs";
+
+function versionOf(name) {
+  return catalog.plugins.find((plugin) => plugin.name === name).version;
+}
 
 function modified(update) {
   const manifest = structuredClone(fixture);
@@ -37,6 +42,8 @@ function modified(update) {
 }
 
 test("requires release tags for full verification, then checks every catalog plugin", () => {
+  assert.deepEqual(fixture.plugins, catalog.plugins.map(({ name, version, source }) =>
+    ({ name, version, source })));
   const tags = fixture.plugins.map(({ name, version }) =>
     execFileSync("git", ["tag", "-l", `${name}-v${version.replaceAll(".", "-")}-*`], {
       encoding: "utf8",
@@ -47,8 +54,8 @@ test("requires release tags for full verification, then checks every catalog plu
   }
   const results = verifyMarketplace(fixture);
   assert.equal(results.length, fixture.plugins.length);
-  assert.match(results[0], /azure-functions-hosted-skills@0\.5\.3 azure-functions-hosted-skills-v0-5-3-/);
-  assert.match(results[1], /azure-resources-query@0\.1\.3 azure-resources-query-v0-1-3-/);
+  assert.ok(results[0].startsWith(`azure-functions-hosted-skills@${versionOf("azure-functions-hosted-skills")} azure-functions-hosted-skills-v`));
+  assert.ok(results[1].startsWith(`azure-resources-query@${versionOf("azure-resources-query")} azure-resources-query-v`));
   assert.match(results[2], /canvas-authoring@0\.1\.1 canvas-authoring-v0-1-1-/);
   assert.match(results[3], /azure-cost-health-check@0\.4\.4 azure-cost-health-check-v0-4-4-/);
   assert.match(results[4], /azure-sre-agent@0\.2\.7 azure-sre-agent-v0-2-7-/);
@@ -58,11 +65,14 @@ test("candidate validates every reviewed package and omits only missing immutabl
   const candidate = modified((m) => { m.name = "azure-dev-tools"; });
   const results = verifyMarketplace(candidate, { candidate: true });
   assert.equal(results.length, candidate.plugins.length);
-  assert.match(results[0], /azure-functions-hosted-skills@0\.5\.3 \(candidate; immutable tag pending\)/);
-  assert.match(results[1], /azure-resources-query@0\.1\.3 \(candidate; immutable tag pending\)/);
+  for (const [index, { name, version }] of candidate.plugins.entries()) {
+    const tags = execFileSync("git", ["tag", "-l", `${name}-v${version.replaceAll(".", "-")}-*`], {
+      encoding: "utf8",
+    }).trim().split("\n").filter(Boolean);
+    assert.equal(results[index], `${name}@${version} ${tags[0] ?? "(candidate; immutable tag pending)"}`);
+  }
   assert.match(results[2], /canvas-authoring-v0-1-1-8af10f8/);
-  assert.match(results[3], /azure-cost-health-check@0\.4\.4 \(candidate; immutable tag pending\)/);
-  assert.match(results[4], /azure-sre-agent@0\.2\.7 \(candidate; immutable tag pending\)/);
+  assert.match(results[4], /azure-sre-agent@0\.2\.7 azure-sre-agent-v0-2-7-9da2e40/);
 });
 
 test("candidate rejects corrupted protected payloads and checksum receipts", () => {
@@ -233,13 +243,7 @@ test("unreviewed versions fail before a tag lookup", () => {
 });
 
 test("target tags must identify the package version and a source commit", () => {
-  for (const [name, version] of [
-    ["azure-functions-hosted-skills", "0.5.3"],
-    ["azure-resources-query", "0.1.3"],
-    ["canvas-authoring", "0.1.1"],
-    ["azure-cost-health-check", "0.4.4"],
-    ["azure-sre-agent", "0.2.6"],
-  ]) {
+  for (const { name, version } of catalog.plugins) {
     assert.doesNotThrow(() => verifyTagSource(
       name, version, `${name}-v${version.replaceAll(".", "-")}-0123456`,
     ));

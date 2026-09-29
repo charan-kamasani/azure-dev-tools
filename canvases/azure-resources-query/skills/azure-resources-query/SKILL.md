@@ -48,13 +48,15 @@ declarations/capabilities and rerun the launch guard with current panel context.
 Retry open once only if the canonical provider is now available. Do not retry a
 still-unavailable ID or loop on reload.
 
-If recovery fails, report the actual error and stop. This is a packaged candidate,
-not a publicly released marketplace install: use the release owner's approved
-candidate instructions, or ask the user to reload/start a fresh chat after fixing
-installation. Do not invent an installation URL, create another extension link,
-run the entry directly, install dependencies, or use alternate inventory as a
-fallback. This recovery is for registration only, never a cancelled scope picker
-or failed Azure query.
+If recovery fails, report the actual error and stop. Check the installed plugin's
+version and source with the user. For an approved candidate, follow the release
+owner's candidate instructions; for a published plugin, follow its marketplace
+or already-published version-tag instructions. A planned tag is not installable.
+After correcting installation, ask the user to reload or start a fresh chat.
+Do not invent an installation URL, create another extension link, run the entry
+directly, install dependencies, or use alternate inventory as a fallback.
+This recovery is for registration only, never a cancelled scope picker or failed
+Azure query.
 
 ## Query once, with explicit scope
 
