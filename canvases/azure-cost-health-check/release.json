@@ -75,7 +75,7 @@
   "build": {
     "esbuild": "0.25.12",
     "lockSha256": "0172a79caa720e5eac81e6db0c203ab705ea3aecbe5fada39cb48f954fe78488",
-    "inputSha256": "d9944092748c47c22da26ad959418589029bab8738748ae6419f6d60b897b0d2"
+    "inputSha256": "6027bebb5ca4823a749081a791c0c6ce1fcab0ac0a8dc71bfa5937ecba4af3c8"
   },
   "dependencies": [
     {

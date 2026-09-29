@@ -96,7 +96,7 @@ test("Cost Health package and customer README match the current catalog", () => 
   assert.match(readme, /\[installation notes\]\(docs\/implementation\.md#install\)/);
   assert.match(implementation, /com\.github\.copilot\/extensions\/azure-cost-health-check/);
   assert.match(implementation, /If the `azure-cost-health-check-latest` tag is\s+updated to 0\.4\.5/i);
-  assert.match(implementation, /--branch azure-cost-health-check-v0-4-5-825f1b7/);
+  assert.match(implementation, /--branch azure-cost-health-check-v0-4-5-bf89cc8/);
 });
 
 test("current builder install and bundled quickstart do not claim an active release hold", () => {

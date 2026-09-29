@@ -1073,9 +1073,15 @@ const picker = createSubscriptionPicker({
   triggerVariant: "field",
   selectionMode: "multiple",
   singleGroup: false,
-  onApply: async items => {
-    const outcome = await refresh({ subscriptions: items.map(item => item.id) });
-    if (outcome?.error) throw outcome.error;
+  // Close the picker immediately; the canvas shows loading progress and any failure.
+  // Record the selection first so a filter change made while loading keeps it.
+  onApply: items => {
+    const subscriptions = items.map(item => item.id);
+    state.subscriptions = subscriptions;
+    void refresh({ subscriptions }).then(outcome => {
+      // Canonical state was re-synced on failure; show its selection, not the rejected one.
+      if (outcome?.error && state.options) updatePicker(state.options.subscriptions);
+    });
   },
   onRefresh: async () => {
     const snapshot = await postJson("/api/subscriptions", {});

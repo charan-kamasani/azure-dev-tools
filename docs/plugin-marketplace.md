@@ -68,20 +68,25 @@ pre-tag qualification uses local-only synthetic tags; native App installation
 remains unverified.
 
 Cost Health 0.4.5 is built from the exact
-[merged source main revision](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/825f1b7f9c3681c9c91a567e7380b0983bcf1304)
-after reviewed source [#197](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/197).
+[merged source main revision](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/bf89cc8f67bf15d7fb538336c5482818b4bb5b01)
+after reviewed source [sign-in #197](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/197)
+and [subscription-picker #196](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/196)
+fixes. Source [#201](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/201)
+also precedes this exact merged source revision; it changes Hosted Skills, not
+Cost Health.
 The 36-file `azure-cost-health-check` source export passed `verify:canvas`;
 all source-export protected files are byte-identical to the production
 candidate. Its 33-file protected-only
 [SHA256SUMS](../canvases/azure-cost-health-check/SHA256SUMS) has SHA-256
-`910e13aced3ce539eb3971772b193668e4fb15695fbde6b3a1c6de5ef4e3d3dc`;
+`e8267cfd0ce6656d265a61cf3a2e5b77eaa07289d8d1d6f926661e89c187a298`;
 source `checksums.json` has SHA-256
-`d66804b04138c47690ef0fb6eaaf3d3f771d8d4cbca4e3531dd14c6818ee81c8`.
+`3b0c6123ca9991fd1de9272588bea9cfcb297809bdc33adc4b5287ff38e54caf`.
 The retained customer README is a disclosed documentation-only production
 overlay replacing the source's `awesome-copilot` install commands with
 `microsoft/azure-dev-tools`, plus explicit latest and pinned-version
-instructions and first-run steps. The updated implementation notes include
-the source-reviewed sign-in guidance and the production version-pinned install.
+instructions, first-run steps, and the subscription-picker loading behavior.
+The updated implementation notes include the source-reviewed sign-in and
+picker guidance and the production version-pinned install.
 The source Cost syntax and 99 source unit/integration tests passed; native
 marketplace/App installation was not verified. The 0.4.5 tag and `-latest`
 update must wait for the paired Hosted Skills and Resources Query immutable

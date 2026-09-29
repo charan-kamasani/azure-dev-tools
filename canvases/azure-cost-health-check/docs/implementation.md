@@ -28,7 +28,7 @@ To pin the *full plugin* to version 0.4.5 after publication, use its
 source-qualified immutable tag:
 
 ```sh
-git clone --depth 1 --branch azure-cost-health-check-v0-4-5-825f1b7 https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
+git clone --depth 1 --branch azure-cost-health-check-v0-4-5-bf89cc8 https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
 copilot plugin install ./azure-cost-health-check-plugin/canvases/azure-cost-health-check
 ```
 
@@ -41,7 +41,7 @@ https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-latest
 ```
 
 Before that update, `-latest` remains on 0.4.3. The `-latest` tag can move;
-replace it with `azure-cost-health-check-v0-4-5-825f1b7` to pin 0.4.5
+replace it with `azure-cost-health-check-v0-4-5-bf89cc8` to pin 0.4.5
 after publication. The canvas-only fallback omits the launcher skill. Do not
 install it alongside the full plugin, which would register duplicate providers.
 
@@ -59,6 +59,9 @@ spend and cost drivers, then forecasts, budgets, Advisor and native alerts,
 then AI billing. **Loading**, missing permissions and partial coverage are
 not zero usage. Native alert and analysis buttons request guidance in chat;
 they do not authorize Azure writes.
+Choosing **Apply** in the subscription picker closes it immediately while
+the new scope loads in the dashboard. If that refresh fails, the picker
+returns to the last server-accepted subscription selection.
 
 ## Build from source (maintainers)
 
