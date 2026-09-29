@@ -36,7 +36,7 @@ the reproducible install points:
 | [Azure Resources Query](canvases/azure-resources-query/) | Find and inspect Azure resources with read-only Resource Graph queries. | Marketplace candidate 0.1.3 is on main; its immutable 0.1.3 tag is not published. `azure-resources-query-latest` still points to 0.1.2. |
 | [Canvas Authoring](plugins/canvas-authoring/) | Add toolkit setup and starter apps to the native `create-canvas` workflow. | 0.1.1 is tagged; `canvas-authoring-latest` points to that release. Skill-only plugin, with no canvas panel. |
 | [Azure Cost Health Check](canvases/azure-cost-health-check/) | Review spend, forecasts, budgets, alerts, recommendations, and AI billing. | Marketplace candidate 0.4.4 is under review; its immutable 0.4.4 tag is not published. `azure-cost-health-check-latest` still points to 0.4.3. |
-| [Azure SRE Agent](canvases/azure-sre-agent/) | Connect to your SRE Agent, diagnose failing apps, and investigate threads. | Marketplace candidate 0.2.6; its immutable tag is not published yet. |
+| [Azure SRE Agent](canvases/azure-sre-agent/) | Connect to your SRE Agent, diagnose failing apps, and investigate incident threads. | Marketplace candidate 0.2.7 is not tagged yet; `azure-sre-agent-latest` still points to 0.2.6. |
 
 Marketplace installation and native App canvas discovery must be confirmed in
 GitHub Copilot after the production PR merges; a source package alone does

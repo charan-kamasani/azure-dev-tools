@@ -1,5 +1,5 @@
 {
-  ".github/plugin/plugin.json": "abed40d35bc0bed2cda1b7a8b9bf4960a9788e6efe810fc4042a93b491ef1f43",
+  ".github/plugin/plugin.json": "697c495d8a848326dd70954bf98983ee907c6957f7110d43a6809408760203d0",
   "assets/preview.png": "6e623f28d485d84302aca4ad0165b9d45f0e8f4d1837d614b9763cd45aeb8ce3",
   "com.github.copilot/extensions/azure-sre-agent/assets/azure-sre-agent-color.svg": "2b59369cf304fea0810488558af67e9e58ba00b02da034c1bef213ee06968405",
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/icons/Subscription.svg": "df78239a16fa8b0d2934b317100e337cac2e49f1ea8d83e55ad1abdf8fa6f136",
@@ -15,10 +15,10 @@
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/subscription-picker.mjs": "2da216c34eeb5d62b8c272f930e63af4c27eba7273a93fe3d12ef29adde7111a",
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/telemetry.mjs": "0fef218c4cf6a172a11a5c945e0323eda6859fbada813d48f43c18b7e4c318a8",
   "com.github.copilot/extensions/azure-sre-agent/assets/toolkit/ui/theme.mjs": "2fd9f29c349f23d7518568d6c087f679c241b42e48780508785965d4c213d03b",
-  "com.github.copilot/extensions/azure-sre-agent/extension.mjs": "2698e61da0b5539c2756e9ef083716047b2e1e76482366bc996d9f44970ca6a5",
-  "com.github.copilot/extensions/azure-sre-agent/studio-package.json": "81a16b8e633ff6d0e26d7455dfd77c48b79508a1fead27d8b6908cef3d82a249",
-  "package.json": "4717004c0ebe2b5837871860499a8a5e60d6a08cbc9b84c8299a7c79a6eb43b1",
-  "release.json": "6d6fdf2b753cb2ef169ec5a56758a743e59e177c675c4d2c0b26ee4c391c71aa",
+  "com.github.copilot/extensions/azure-sre-agent/extension.mjs": "32430eae612152c7bbd12be8263139b7d74b0cbb1ed1d272fceba0e5825049c7",
+  "com.github.copilot/extensions/azure-sre-agent/studio-package.json": "92906c82f9f5063d35cb1ec05db51abaa5eed25a48f895cf1af95dedc4965247",
+  "package.json": "ddb57cd0e9f58ba5280e59c1572c0efd3bcb26f23f117447d6b1b7bcdeac668f",
+  "release.json": "d8a0563c066ad37985594011f95376ecb652487558a70c67be42fac474d08348",
   "skills/azure-sre-agent-canvas/SKILL.md": "14eefced31fd847597b6741e3b9337d5a69aadf5ff2e58ab671bfd92119360dc",
   "THIRD_PARTY_NOTICES.txt": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
 }

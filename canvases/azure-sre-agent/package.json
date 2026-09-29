@@ -1,6 +1,6 @@
 {
   "name": "azure-sre-agent",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "main": "com.github.copilot/extensions/azure-sre-agent/extension.mjs",

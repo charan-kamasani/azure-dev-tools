@@ -779,6 +779,7 @@ function transcriptRenderKey(thread) {
   return JSON.stringify({
     id: threadId(thread),
     messages: boundedTranscriptMessages(thread),
+    startMessage: thread && thread.startMessage,
     awaiting: thread && thread.awaitingResponse
   });
 }
@@ -820,10 +821,18 @@ var EXTERNAL_AGENT_ROUTES = /* @__PURE__ */ new Set([
   "/unfocus-thread",
   "/send-message",
   "/investigate",
+  "/search-threads",
+  "/diagnose-app",
+  "/query-incidents",
+  "/refresh-incidents",
+  "/load-more-incidents",
   "/add-favorite",
   "/remove-favorite",
   "/select-favorite"
 ]);
+function externalAgentRouteAllowed(pathname) {
+  return EXTERNAL_AGENT_ROUTES.has(pathname);
+}
 var EXTERNAL_AGENT_ACTIONS = /* @__PURE__ */ new Set([
   "list_agents",
   "select_agent",
@@ -1754,6 +1763,7 @@ async function currentIdentity(entry) {
   return cachedIdentity;
 }
 var EXTERNAL_THREAD_PAGE_SIZE = 25;
+var INCIDENT_THREAD_PAGE_SIZE = 25;
 function projectExternalThreadSummary(thread) {
   const summary = projectThread(thread);
   if (!summary?.id) throw new Error("The external agent returned a thread without an id.");
@@ -1769,7 +1779,11 @@ function projectExternalThreadSummary(thread) {
     startMessage: messagePreview(thread.startMessage),
     lastMessage: messagePreview(thread.lastMessage),
     status: typeof thread.status === "string" ? thread.status : {
-      incidentStatus: { status: summary.incidentStatus },
+      incidentStatus: {
+        incidentId: incidentScalar(thread.status?.incidentStatus?.incidentId),
+        status: summary.incidentStatus
+      },
+      investigationStatus: thread.status?.investigationStatus ? { status: incidentScalar(thread.status.investigationStatus, ["status", "label", "name", "value"]) } : void 0,
       actionsStatus: {
         hasCriticalActions: summary.hasCriticalActions,
         hasWarningActions: summary.hasWarningActions
@@ -1777,11 +1791,19 @@ function projectExternalThreadSummary(thread) {
     }
   };
 }
-async function listThreads(agent, subscription, entry, { fetchImpl = dataPlaneFetch } = {}) {
-  const path2 = agent.external ? `/api/v1/threads?top=${EXTERNAL_THREAD_PAGE_SIZE}&orderby=modifiedTimestamp%20desc` : "/api/v1/threads";
+function threadTitleFilter(query) {
+  const value = String(query || "").trim();
+  if (!value || value.length > 120 || /[\u0000-\u001f\u007f]/.test(value)) {
+    throw new Error("Enter a thread title search of 1 to 120 characters without control characters.");
+  }
+  return `contains(tolower(title),'${value.toLowerCase().replace(/'/g, "''")}')`;
+}
+async function listThreads(agent, subscription, entry, { fetchImpl = dataPlaneFetch, filter } = {}) {
+  if (filter && !agent.external) throw new Error("Server-side thread search requires an external agent.");
+  const path2 = agent.external ? `/api/v1/threads?${filter ? "skip=0&" : ""}top=${EXTERNAL_THREAD_PAGE_SIZE}&${filter ? `filter=${encodeURIComponent(filter).replace(/'/g, "%27")}&` : ""}orderby=modifiedTimestamp%20desc` : "/api/v1/threads";
   const data = await fetchImpl(agent, subscription, "GET", path2, void 0, entry, { title: "list threads" });
-  if (agent.external && !Array.isArray(data?.value) && !Array.isArray(data)) {
-    throw new Error("The external agent did not return a valid thread list.");
+  if (!Array.isArray(data?.value) && !Array.isArray(data)) {
+    throw new Error("The SRE Agent did not return a valid thread list.");
   }
   const threads = data?.value || data || [];
   if (agent.external && threads.length > EXTERNAL_THREAD_PAGE_SIZE) {
@@ -1826,11 +1848,23 @@ function findExecutionInThread2(thread, kind, executionId) {
     executionId
   })?.execution || null;
 }
-async function createThread(agent, subscription, message, entry) {
-  const identity = await currentIdentity(entry);
-  return dataPlaneFetch(agent, subscription, "POST", "/api/v1/threads", {
+async function createThread(agent, subscription, message, entry, {
+  identityImpl = currentIdentity,
+  fetchImpl = dataPlaneFetch
+} = {}) {
+  const identity = await identityImpl(entry);
+  const thread = await fetchImpl(agent, subscription, "POST", "/api/v1/threads", {
     startMessage: { text: message, userId: identity.userId, displayName: identity.displayName }
   }, entry, { title: "create thread" });
+  if (!threadId(thread)) throw new Error("The SRE Agent did not return a new thread id; diagnosis was not confirmed.");
+  return thread.startMessage ? thread : {
+    ...thread,
+    startMessage: { text: message, role: "User", author: { role: "User", displayName: identity.displayName } }
+  };
+}
+function retainInitialThreadPrompt(thread, previous) {
+  if (threadId(thread) !== threadId(previous) || !previous?.startMessage || thread?.startMessage || (thread?.messages?.length ?? 0) > 0) return thread;
+  return { ...thread, startMessage: previous.startMessage };
 }
 async function sendMessage(agent, subscription, threadId2, message, entry) {
   const identity = await currentIdentity(entry);
@@ -1959,9 +1993,263 @@ async function stableGuid(seed) {
   const hash = createHash3("sha1").update(seed).digest("hex").slice(0, 32);
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
-async function listActiveIncidents(agent, subscription, entry) {
-  const data = await dataPlaneFetch(agent, subscription, "GET", "/api/v2/incidents", void 0, entry, { title: "list active incidents" });
-  return data?.value || data || [];
+function incidentScalar(value, keys = []) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value).slice(0, 500);
+  }
+  if (typeof value !== "object" || Array.isArray(value)) return "";
+  for (const key of keys) {
+    const nested = incidentScalar(value[key]);
+    if (nested) return nested;
+  }
+  return "";
+}
+function boundedIncidentText(value, maxLength, keys = []) {
+  return incidentScalar(value, keys).slice(0, maxLength);
+}
+function incidentMarker(thread) {
+  const marker = thread && typeof thread === "object" ? thread.status?.incidentStatus : null;
+  const incidentId = incidentScalar(marker?.incidentId) || incidentScalar(thread?.incidentSource?.incidentId) || incidentScalar(thread?.incidentId);
+  const status = incidentScalar(marker?.status) || incidentScalar(thread?.incidentDetails?.incidentStatus) || incidentScalar(thread?.incidentStatus);
+  const source = incidentScalar(thread?.source);
+  const hasIncidentDetails = Boolean(
+    thread?.incidentDetails && typeof thread.incidentDetails === "object" && !Array.isArray(thread.incidentDetails)
+  );
+  return incidentId || status || source === "Incident" || hasIncidentDetails ? { incidentId, status } : null;
+}
+function terminalIncidentStatus(status) {
+  return (/* @__PURE__ */ new Set([
+    "resolved",
+    "closed",
+    "mitigated",
+    "complete",
+    "completed",
+    "cancelled",
+    "canceled",
+    "inactive",
+    "dismissed",
+    "notanincident",
+    "none"
+  ])).has(String(status || "").toLowerCase().replace(/[\s_-]/g, ""));
+}
+function projectIncident(thread) {
+  if (!thread || typeof thread !== "object" || Array.isArray(thread)) {
+    throw new Error("The SRE Agent returned an invalid thread.");
+  }
+  const marker = incidentMarker(thread);
+  if (!marker) return null;
+  const threadId2 = boundedIncidentText(thread.id, 200);
+  if (!threadId2) throw new Error("The SRE Agent returned an incident thread without an id.");
+  const details = thread.incidentDetails && typeof thread.incidentDetails === "object" && !Array.isArray(thread.incidentDetails) ? thread.incidentDetails : {};
+  const source = thread.incidentSource && typeof thread.incidentSource === "object" && !Array.isArray(thread.incidentSource) ? thread.incidentSource : {};
+  return {
+    id: boundedIncidentText(source.incidentId, 200) || boundedIncidentText(marker.incidentId, 200) || threadId2,
+    threadId: threadId2,
+    title: boundedIncidentText(details.incidentTitle, 240) || boundedIncidentText(thread.title, 240),
+    severity: boundedIncidentText(details.incidentPriority, 80),
+    status: boundedIncidentText(details.incidentStatus, 80) || boundedIncidentText(marker.status, 80) || "Unknown",
+    agentStatus: boundedIncidentText(details.investigationStatus, 80),
+    date: boundedIncidentText(
+      details.incidentCreatedTime ?? thread.createdTimestamp ?? thread.createdAt ?? thread.modifiedTimestamp,
+      80,
+      ["value"]
+    ),
+    owningService: boundedIncidentText(details.impactedService, 160),
+    owningTeam: boundedIncidentText(details.ownerGroup?.name, 160),
+    responsePlan: boundedIncidentText(details.filterId, 160),
+    active: !terminalIncidentStatus(marker.status)
+  };
+}
+function deriveIncidents(threads) {
+  if (!Array.isArray(threads)) throw new Error("Incidents require a valid thread list.");
+  const projected = threads.map((thread) => ({
+    incident: projectIncident(thread),
+    modified: incidentScalar(thread?.modifiedTimestamp) || incidentScalar(thread?.lastUpdatedTimestamp)
+  })).filter((item) => item.incident).sort((a, b) => String(b.modified || b.incident.date || "").localeCompare(String(a.modified || a.incident.date || ""))).map((item) => item.incident);
+  return dedupeIncidents(projected);
+}
+function dedupeIncidents(incidents) {
+  const unique = /* @__PURE__ */ new Map();
+  for (const incident of Array.isArray(incidents) ? incidents : []) {
+    const key = incident.id || incident.threadId;
+    if (key && !unique.has(key)) unique.set(key, incident);
+  }
+  return [...unique.values()];
+}
+function objectKeys(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort().slice(0, 40) : [];
+}
+function incidentContractMetadata(threads) {
+  const keys = {
+    incidentStatus: /* @__PURE__ */ new Set(),
+    investigationStatus: /* @__PURE__ */ new Set(),
+    incidentDetails: /* @__PURE__ */ new Set(),
+    incidentSource: /* @__PURE__ */ new Set()
+  };
+  for (const thread of Array.isArray(threads) ? threads : []) {
+    for (const key of objectKeys(thread?.status?.incidentStatus)) keys.incidentStatus.add(key);
+    for (const key of objectKeys(thread?.status?.investigationStatus)) keys.investigationStatus.add(key);
+    for (const key of objectKeys(thread?.incidentDetails)) keys.incidentDetails.add(key);
+    for (const key of objectKeys(thread?.incidentSource)) keys.incidentSource.add(key);
+  }
+  return Object.fromEntries(Object.entries(keys).map(([name, values]) => [name, [...values].sort()]));
+}
+async function listIncidentThreadPage(agent, subscription, entry, {
+  skip = 0,
+  top = INCIDENT_THREAD_PAGE_SIZE,
+  query = "",
+  status = "",
+  fetchImpl = dataPlaneFetch
+} = {}) {
+  const offset = Number.isInteger(skip) && skip >= 0 ? skip : 0;
+  const limit = Number.isInteger(top) && top > 0 && top <= 100 ? top : INCIDENT_THREAD_PAGE_SIZE;
+  const filter = incidentThreadFilter({ query, status });
+  const search = new URLSearchParams({
+    skip: String(offset),
+    top: String(limit),
+    filter,
+    orderby: "modifiedTimestamp desc"
+  });
+  const data = await fetchImpl(
+    agent,
+    subscription,
+    "GET",
+    `/api/v1/threads?${search.toString()}`,
+    void 0,
+    entry,
+    { title: "list incident threads" }
+  );
+  const rows = Array.isArray(data?.value) ? data.value : Array.isArray(data) ? data : null;
+  if (!rows) throw new Error("The SRE Agent did not return a valid thread list for incidents.");
+  return {
+    threads: rows,
+    incidents: deriveIncidents(rows),
+    contract: incidentContractMetadata(rows),
+    skip: offset,
+    top: limit,
+    hasMore: rows.length === limit
+  };
+}
+function odataLiteral(value) {
+  return String(value || "").trim().toLowerCase().replaceAll("'", "''");
+}
+function incidentThreadFilter({ query = "", status = "" } = {}) {
+  const clauses = ["source eq 'Incident'"];
+  const term = odataLiteral(query);
+  if (term) {
+    clauses.push(
+      `((incidentDetails ne null and contains(tolower(incidentDetails/incidentTitle),'${term}')) or (incidentDetails eq null and contains(tolower(title),'${term}')) or contains(tolower(incidentId),'${term}') or contains(tolower(incidentDetails/filterId),'${term}'))`
+    );
+  }
+  const selected = odataLiteral(status);
+  if (selected) {
+    const statusClause = `tolower(incidentStatus) eq '${selected}'`;
+    clauses.push(["active", "triggered", "new"].includes(selected) ? `(${statusClause} or incidentStatus eq '')` : statusClause);
+  }
+  return clauses.join(" and ");
+}
+function countEntries(value) {
+  return value.map((item) => [incidentScalar(item.status), Number(item.count)]);
+}
+function projectIncidentCounts(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) || !Array.isArray(payload.incidentStatusCounts) || !Array.isArray(payload.investigationStatusCounts)) {
+    throw new Error("The SRE Agent did not return valid incident counters.");
+  }
+  const validEntry = (item) => item && typeof item === "object" && !Array.isArray(item) && incidentScalar(item.status) && Number.isFinite(Number(item.count));
+  if (!payload.incidentStatusCounts.every(validEntry) || !payload.investigationStatusCounts.every(validEntry)) {
+    throw new Error("The SRE Agent returned malformed incident counters.");
+  }
+  const incident = Object.fromEntries(countEntries(payload.incidentStatusCounts).filter(([key, count]) => key && Number.isFinite(count)));
+  const investigation = Object.fromEntries(countEntries(payload.investigationStatusCounts).filter(([key, count]) => key && Number.isFinite(count)));
+  const find = (counts, wanted) => Object.entries(counts).find(([key]) => String(key).toLowerCase() === wanted)?.[1] || 0;
+  return {
+    active: find(incident, "active"),
+    mitigated: find(incident, "mitigated") + find(incident, "resolved"),
+    completed: find(investigation, "complete") + find(investigation, "completed"),
+    inProgress: find(investigation, "inprogress") + find(investigation, "in progress"),
+    total: Object.values(incident).reduce((sum, count) => sum + count, 0)
+  };
+}
+async function getIncidentCounts(agent, subscription, entry, {
+  query = "",
+  status = "",
+  fetchImpl = dataPlaneFetch
+} = {}) {
+  const search = new URLSearchParams({ filter: incidentThreadFilter({ query, status }) });
+  const payload = await fetchImpl(
+    agent,
+    subscription,
+    "GET",
+    `/api/v1/threads/threadsCountByStatus?${search.toString()}`,
+    void 0,
+    entry,
+    { title: "load incident counters" }
+  );
+  return projectIncidentCounts(payload);
+}
+function incidentsPortalUrl(agent, subscription) {
+  if (!agent) throw new Error("Select an SRE Agent first.");
+  if (agent.external) {
+    const parsed = parseExternalAgentReference(agent.portalUrl);
+    if (!parsed?.portalUrl || parsed.endpoint !== agent.endpoint) {
+      throw new Error("Paste the registered external-agent portal link to open incidents in Portal.");
+    }
+    const portal = new URL(parsed.portalUrl);
+    portal.hash = "/views/incidents";
+    return portal.href;
+  }
+  const resourceGroup = String(agent.resourceGroup || "").trim();
+  const name = String(agent.name || "").trim();
+  const scope = String(subscription || "").trim();
+  if (!scope || !resourceGroup || !name) throw new Error("The connected agent does not have a complete Azure resource scope.");
+  return "https://sre.azure.com/agents/subscriptions/" + encodeURIComponent(scope) + "/resourceGroups/" + encodeURIComponent(resourceGroup) + "/providers/Microsoft.App/agents/" + encodeURIComponent(name) + "/views/incidents";
+}
+async function listActiveIncidents(agent, subscription, entry, {
+  skip = 0,
+  query = "",
+  status = "",
+  listPageImpl = listIncidentThreadPage,
+  listCountsImpl = getIncidentCounts,
+  fetchImpl = dataPlaneFetch
+} = {}) {
+  const [page, counts] = await Promise.all([
+    listPageImpl(agent, subscription, entry, {
+      skip,
+      top: INCIDENT_THREAD_PAGE_SIZE,
+      query,
+      status,
+      fetchImpl
+    }),
+    listCountsImpl(agent, subscription, entry, { fetchImpl })
+  ]);
+  return {
+    incidents: page.incidents,
+    contract: page.contract,
+    counts,
+    derivedFrom: "threads",
+    threadCount: page.threads.length,
+    nextSkip: page.skip + page.threads.length,
+    hasMore: page.hasMore,
+    partial: page.hasMore
+  };
+}
+async function loadOptionalIncidents(load) {
+  try {
+    return { result: await load(), accessError: "" };
+  } catch (error) {
+    return {
+      result: {
+        incidents: [],
+        contract: null,
+        counts: { active: 0, mitigated: 0, completed: 0, inProgress: 0, total: 0 },
+        nextSkip: 0,
+        hasMore: false,
+        partial: false
+      },
+      accessError: `Incidents unavailable: ${shortError2(error)}`
+    };
+  }
 }
 async function createIncident(agent, subscription, { title, description, severity, services }, entry) {
   const text = `Incident: ${title}
@@ -2378,6 +2666,15 @@ function ensureEntry(instanceId) {
       focusedThreadId: "",
       focusedThreadTitle: "",
       incidents: [],
+      incidentsError: "",
+      incidentsContract: null,
+      incidentsPartial: false,
+      incidentCounts: { active: 0, mitigated: 0, completed: 0, inProgress: 0, total: 0 },
+      incidentsNextSkip: 0,
+      incidentsHasMore: false,
+      incidentQuery: "",
+      incidentStatusFilter: "",
+      incidentQueryGeneration: 0,
       needsAttention: [],
       executionGates: null,
       scheduledTasks: [],
@@ -2423,6 +2720,14 @@ function snapshot(entry) {
     focusedThreadId: entry.focusedThreadId,
     focusedThreadTitle: entry.focusedThreadTitle,
     incidents: entry.incidents,
+    incidentsError: entry.incidentsError,
+    incidentsContract: entry.incidentsContract,
+    incidentsPartial: entry.incidentsPartial,
+    incidentCounts: entry.incidentCounts,
+    incidentsNextSkip: entry.incidentsNextSkip,
+    incidentsHasMore: entry.incidentsHasMore,
+    incidentQuery: entry.incidentQuery,
+    incidentStatusFilter: entry.incidentStatusFilter,
     needsAttention: entry.needsAttention,
     executionGates: entry.executionGates,
     scheduledTasks: entry.scheduledTasks,
@@ -2575,12 +2880,20 @@ async function loadAgentsForSub(entry, { resetAgent = false, listAgentsImpl = li
     entry.threads = [];
     clearThreadContext(entry);
     entry.incidents = [];
+    entry.incidentsError = "";
+    entry.incidentsContract = null;
+    entry.incidentsPartial = false;
+    entry.incidentCounts = { active: 0, mitigated: 0, completed: 0, inProgress: 0, total: 0 };
+    entry.incidentsNextSkip = 0;
+    entry.incidentsHasMore = false;
+    entry.incidentQuery = "";
+    entry.incidentStatusFilter = "";
     entry.needsAttention = [];
     entry.executionGates = null;
     entry.scheduledTasks = [];
     entry.scheduledTasksError = "";
   }
-  entry.status = currentExternal ? `Connected to external agent ${currentExternal.name}. Showing up to ${EXTERNAL_THREAD_PAGE_SIZE} recent threads; older threads are in Portal. ARM-managed features are unavailable.` : entry.agents.length ? `Found ${entry.agents.length} SRE Agent(s). Select one to continue.` : "No SRE Agent resources found in this subscription.";
+  entry.status = currentExternal ? `Connected to external agent ${currentExternal.name}. Threads start with ${EXTERNAL_THREAD_PAGE_SIZE} recent items; read-only incidents support server-filtered paging. ARM-managed features are unavailable.` : entry.agents.length ? `Found ${entry.agents.length} SRE Agent(s). Select one to continue.` : "No SRE Agent resources found in this subscription.";
   if (stillPresent && !resetAgent && (!entry.agent || entry.agent.name !== wantedName)) {
     await selectAgent(entry, stillPresent, { generation, subscription });
   }
@@ -2622,13 +2935,24 @@ async function selectAgent(entry, agentRow, options = {}) {
     }
   }
   if (generation !== entry.selectionGeneration || subscription !== entry.subscription) return false;
-  const [connectors, threads, incidents, needsAttention, scheduledTasksResult] = selectedAgent.external ? [[], await (options.listThreadsImpl || listThreads)(selectedAgent, subscription, entry), [], [], { tasks: [], accessError: "" }] : await Promise.all([
+  const [connectors, threads, needsAttention, scheduledTasksResult] = selectedAgent.external ? [
+    [],
+    await (options.listThreadsImpl || listThreads)(selectedAgent, subscription, entry),
+    [],
+    { tasks: [], accessError: "" }
+  ] : await Promise.all([
     listConnectors(selectedAgent, subscription, entry),
     listThreads(selectedAgent, subscription, entry),
-    listActiveIncidents(selectedAgent, subscription, entry),
     listNeedsAttention(selectedAgent, subscription, entry),
     loadOptionalScheduledTasks(() => listScheduledTasks(selectedAgent, subscription, entry))
   ]);
+  const incidentLoad = await loadOptionalIncidents(() => (options.listIncidentsImpl || listActiveIncidents)(
+    selectedAgent,
+    subscription,
+    entry,
+    { threads }
+  ));
+  const incidentsResult = incidentLoad.result;
   if (generation !== entry.selectionGeneration || subscription !== entry.subscription) return false;
   const changingAgent = isAgentContextSwitch(entry.agent, selectedAgent);
   const hydrated = {
@@ -2650,12 +2974,18 @@ async function selectAgent(entry, agentRow, options = {}) {
   } else {
     entry.activeThread = hydrated.activeThread;
   }
-  entry.incidents = incidents;
+  entry.incidents = incidentsResult.incidents;
+  entry.incidentsError = incidentLoad.accessError;
+  entry.incidentsContract = incidentsResult.contract;
+  entry.incidentsPartial = incidentsResult.partial;
+  entry.incidentCounts = incidentsResult.counts;
+  entry.incidentsNextSkip = incidentsResult.nextSkip;
+  entry.incidentsHasMore = incidentsResult.hasMore;
   entry.needsAttention = needsAttention;
   entry.executionGates = null;
   entry.scheduledTasks = scheduledTasksResult.tasks;
   entry.scheduledTasksError = scheduledTasksResult.accessError;
-  entry.status = selectedAgent.external ? `Connected to external agent ${entry.agent.name}. Showing up to ${EXTERNAL_THREAD_PAGE_SIZE} recent threads; older threads are in Portal. ARM-managed features are unavailable.` : `Connected to ${entry.agent.name}.`;
+  entry.status = selectedAgent.external ? `Connected to external agent ${entry.agent.name}. Threads start with ${EXTERNAL_THREAD_PAGE_SIZE} recent items; read-only incidents support server-filtered paging. ARM-managed features are unavailable.` : `Connected to ${entry.agent.name}.`;
   (options.rememberSelectionImpl || rememberSelection)(entry);
   return true;
 }
@@ -2689,7 +3019,7 @@ async function openSharedAgentReference(entry, value, dependencies = {}) {
       externalAgentName: agent2.name,
       externalPortalUrl: agent2.portalUrl
     });
-    entry.status = `Connected to external agent ${agent2.name}. Showing up to ${EXTERNAL_THREAD_PAGE_SIZE} recent threads; older threads are in Portal. ARM-managed features are unavailable.`;
+    entry.status = `Connected to external agent ${agent2.name}. Threads start with ${EXTERNAL_THREAD_PAGE_SIZE} recent items; read-only incidents support server-filtered paging. ARM-managed features are unavailable.`;
     entry.error = "";
     return agent2;
   }
@@ -2867,13 +3197,19 @@ data: ${JSON.stringify(snapshot(entry))}
       entry.threads = upsertThread(entry.threads, result2);
       return result2;
     }),
+    "/search-threads": async () => {
+      if (!entry.agent?.external) throw new Error("Server-side thread search requires an external agent.");
+      const filter = threadTitleFilter(body.query);
+      return { threads: await listThreads(entry.agent, entry.subscription, entry, { filter }) };
+    },
     "/open-thread": async () => withBusy(entry, body.poll ? "" : "Loading thread...", async () => {
       const thread = await getThread(entry.agent, entry.subscription, body.threadId, entry);
       const activeId = threadId(entry.activeThread);
-      if (!body.poll || !activeId || activeId === body.threadId) entry.activeThread = thread;
-      entry.threads = upsertThread(entry.threads, thread);
+      const displayed = retainInitialThreadPrompt(thread, entry.activeThread);
+      if (!body.poll || !activeId || activeId === body.threadId) entry.activeThread = displayed;
+      entry.threads = upsertThread(entry.threads, displayed);
       if (!body.poll) entry.status = `Loaded thread "${thread.title || body.threadId}".`;
-      return thread;
+      return displayed;
     }),
     "/focus-thread": async () => withBusy(entry, "Focusing thread...", async () => {
       const thread = await getThread(entry.agent, entry.subscription, body.threadId, entry, { strict: true });
@@ -2959,8 +3295,87 @@ data: ${JSON.stringify(snapshot(entry))}
     }),
     "/create-incident": async () => withBusy(entry, "Creating incident...", async () => {
       const result2 = await createIncident(entry.agent, entry.subscription, body, entry);
-      entry.incidents = await listActiveIncidents(entry.agent, entry.subscription, entry).catch(() => entry.incidents);
+      entry.threads = await listThreads(entry.agent, entry.subscription, entry);
+      const incidents = await listActiveIncidents(entry.agent, entry.subscription, entry, { threads: entry.threads });
+      entry.incidents = incidents.incidents;
+      entry.incidentsContract = incidents.contract;
+      entry.incidentsPartial = incidents.partial;
+      entry.incidentCounts = incidents.counts;
+      entry.incidentsNextSkip = incidents.nextSkip;
+      entry.incidentsHasMore = incidents.hasMore;
       return result2;
+    }),
+    "/refresh-incidents": async () => withBusy(entry, "Refreshing incidents...", async () => {
+      if (!entry.agent) throw new Error("Select an SRE Agent first.");
+      try {
+        const result2 = await listActiveIncidents(entry.agent, entry.subscription, entry, {
+          query: entry.incidentQuery,
+          status: entry.incidentStatusFilter
+        });
+        entry.incidents = result2.incidents;
+        entry.incidentsError = "";
+        entry.incidentsContract = result2.contract;
+        entry.incidentsPartial = result2.partial;
+        entry.incidentCounts = result2.counts;
+        entry.incidentsNextSkip = result2.nextSkip;
+        entry.incidentsHasMore = result2.hasMore;
+        entry.status = `Loaded ${entry.incidents.length} incident thread(s) from the first ${result2.threadCount} recent threads.` + (result2.hasMore ? " Load more to scan the next bounded page." : "");
+        return result2;
+      } catch (error) {
+        entry.incidentsError = `Incidents unavailable: ${shortError2(error)}`;
+        throw error;
+      }
+    }),
+    "/query-incidents": async () => withBusy(entry, "Filtering incidents...", async () => {
+      if (!entry.agent) throw new Error("Select an SRE Agent first.");
+      const generation = ++entry.incidentQueryGeneration;
+      const query = String(body.query || "").slice(0, 200);
+      const status = String(body.status || "").slice(0, 80);
+      try {
+        const result2 = await listActiveIncidents(entry.agent, entry.subscription, entry, {
+          query,
+          status
+        });
+        if (generation !== entry.incidentQueryGeneration) return { stale: true };
+        entry.incidentQuery = query;
+        entry.incidentStatusFilter = status;
+        entry.incidents = result2.incidents;
+        entry.incidentsError = "";
+        entry.incidentsContract = result2.contract;
+        entry.incidentsPartial = result2.partial;
+        entry.incidentCounts = result2.counts;
+        entry.incidentsNextSkip = result2.nextSkip;
+        entry.incidentsHasMore = result2.hasMore;
+        entry.status = `Loaded ${entry.incidents.length} matching incident thread(s).` + (result2.hasMore ? " More matching pages are available." : "");
+        return result2;
+      } catch (error) {
+        if (generation === entry.incidentQueryGeneration) {
+          entry.incidentsError = `Incidents unavailable: ${shortError2(error)}`;
+        }
+        throw error;
+      }
+    }),
+    "/load-more-incidents": async () => withBusy(entry, "Loading more incidents...", async () => {
+      if (!entry.agent) throw new Error("Select an SRE Agent first.");
+      try {
+        const result2 = await listActiveIncidents(entry.agent, entry.subscription, entry, {
+          skip: entry.incidentsNextSkip || 0,
+          query: entry.incidentQuery,
+          status: entry.incidentStatusFilter
+        });
+        entry.incidents = dedupeIncidents([...entry.incidents, ...result2.incidents]);
+        entry.incidentsError = "";
+        entry.incidentsContract = result2.contract;
+        entry.incidentsPartial = result2.partial;
+        entry.incidentCounts = result2.counts;
+        entry.incidentsNextSkip = result2.nextSkip;
+        entry.incidentsHasMore = result2.hasMore;
+        entry.status = `Loaded ${entry.incidents.length} incident thread(s) from ${result2.nextSkip} matching rows.` + (result2.hasMore ? " More pages are available." : " Reached the end of the matching incident list.");
+        return result2;
+      } catch (error) {
+        entry.incidentsError = `Incidents unavailable: ${shortError2(error)}`;
+        throw error;
+      }
     }),
     "/diagnose-app": async () => withBusy(entry, "Resolving app resource...", async () => diagnoseApp(entry, body)),
     "/check-config-drift": async () => withBusy(entry, "Scanning workspace and comparing to Azure app settings...", async () => {
@@ -3055,8 +3470,8 @@ data: ${JSON.stringify(snapshot(entry))}
     res.writeHead(404).end();
     return;
   }
-  if (entry.agent?.external && !EXTERNAL_AGENT_ROUTES.has(url.pathname)) {
-    entry.error = "This operation requires an ARM-managed SRE Agent. External agents support conversation threads only.";
+  if (entry.agent?.external && !externalAgentRouteAllowed(url.pathname)) {
+    entry.error = "This operation requires an ARM-managed SRE Agent. External agents support threads and read-only incidents.";
     broadcast(entry, "state", snapshot(entry));
     throw new Error(entry.error);
   }
@@ -3096,13 +3511,20 @@ async function ensureAgentSelected(entry) {
   if (!row) throw new Error("Select an SRE Agent first.");
   await selectAgent(entry, row);
 }
-async function diagnoseApp(entry, { resourceIdOrName, note, appSubscription }) {
-  await ensureAgentSelected(entry);
+async function diagnoseApp(entry, { resourceIdOrName, note, appSubscription }, {
+  ensureAgentImpl = ensureAgentSelected,
+  resolveAppImpl = resolveAppResource,
+  healthImpl = resourceHealthSummary,
+  driftImpl = checkWorkspaceConfigDrift,
+  investigateImpl = investigate,
+  listThreadsImpl = listThreads
+} = {}) {
+  await ensureAgentImpl(entry);
   const targetSubscription = appSubscription || entry.appSubscription || entry.subscription;
-  const resource = await resolveAppResource(targetSubscription, resourceIdOrName, entry);
+  const resource = await resolveAppImpl(targetSubscription, resourceIdOrName, entry);
   if (!resource) throw new Error(`Could not resolve an app resource matching "${resourceIdOrName}".`);
-  const health = await resourceHealthSummary(resource.id, targetSubscription, entry);
-  const drift = await checkWorkspaceConfigDrift(resource, targetSubscription, entry).catch((err) => ({ error: shortError2(err) }));
+  const health = await healthImpl(resource.id, targetSubscription, entry);
+  const drift = await driftImpl(resource, targetSubscription, entry).catch((err) => ({ error: shortError2(err) }));
   entry.configDrift = drift;
   const driftLines = [];
   if (!drift.error && drift.missingInAzure?.length) {
@@ -3120,9 +3542,10 @@ async function diagnoseApp(entry, { resourceIdOrName, note, appSubscription }) {
     note ? `Additional context from the user: ${note}` : "",
     "Please check recent deployments, restarts, and errors, and propose a root cause and remediation."
   ].filter(Boolean).join("\n");
-  const result = await investigate(entry.agent, entry.subscription, message, { yolo: false }, entry);
+  const result = await investigateImpl(entry.agent, entry.subscription, message, { yolo: false }, entry);
+  if (!threadId(result)) throw new Error("The SRE Agent did not return a new diagnosis thread id.");
   entry.activeThread = result;
-  entry.threads = await listThreads(entry.agent, entry.subscription, entry).catch(() => entry.threads);
+  entry.threads = upsertThread(await listThreadsImpl(entry.agent, entry.subscription, entry).catch(() => entry.threads), result);
   entry.status = `Diagnosis started for ${resource.name}: thread "${result?.title || result?.id || "new investigation"}" opened below.`;
   return { resource, health, configDrift: drift, investigation: result };
 }
@@ -3320,9 +3743,16 @@ var canvas = createCanvas({
       async handler({ instanceId }) {
         const entry = ensureEntry(instanceId);
         if (!entry.agent) return { ok: false, message: "Select an SRE Agent first." };
-        entry.incidents = await listActiveIncidents(entry.agent, entry.subscription, entry);
+        const result = await listActiveIncidents(entry.agent, entry.subscription, entry);
+        entry.incidents = result.incidents;
+        entry.incidentsError = "";
+        entry.incidentsContract = result.contract;
+        entry.incidentsPartial = result.partial;
+        entry.incidentCounts = result.counts;
+        entry.incidentsNextSkip = result.nextSkip;
+        entry.incidentsHasMore = result.hasMore;
         broadcast(entry, "state", snapshot(entry));
-        return { ok: true, incidents: entry.incidents };
+        return { ok: true, ...result };
       }
     },
     {
@@ -3376,7 +3806,14 @@ var canvas = createCanvas({
         const entry = ensureEntry(instanceId);
         if (!entry.agent) return { ok: false, message: "Select an SRE Agent first." };
         const result = await createIncident(entry.agent, entry.subscription, input || {}, entry);
-        entry.incidents = await listActiveIncidents(entry.agent, entry.subscription, entry).catch(() => entry.incidents);
+        entry.threads = await listThreads(entry.agent, entry.subscription, entry);
+        const incidents = await listActiveIncidents(entry.agent, entry.subscription, entry, { threads: entry.threads });
+        entry.incidents = incidents.incidents;
+        entry.incidentsContract = incidents.contract;
+        entry.incidentsPartial = incidents.partial;
+        entry.incidentCounts = incidents.counts;
+        entry.incidentsNextSkip = incidents.nextSkip;
+        entry.incidentsHasMore = incidents.hasMore;
         broadcast(entry, "state", snapshot(entry));
         return { ok: true, result };
       }
@@ -3457,7 +3894,7 @@ var canvas = createCanvas({
     ...action,
     async handler(args) {
       if (ensureEntry(args.instanceId).agent?.external && !EXTERNAL_AGENT_ACTIONS.has(action.name)) {
-        throw new Error("This action requires an ARM-managed SRE Agent. External agents support conversation threads only.");
+        throw new Error("This action requires an ARM-managed SRE Agent. External agents support threads and read-only incidents.");
       }
       const result = await action.handler(args);
       return appendFocusContract(ensureEntry(args.instanceId), result);
@@ -3623,6 +4060,36 @@ Revision: ${STUDIO_REVISION}
   .favorite-item[aria-current="true"] { background: var(--selected-bg); color: var(--selected-ink); border-color: var(--accent); font-weight: 700; }
   .favorites-error { color: var(--err); }
   .tag { font-size: .68rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .incident-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .35fr) auto auto; gap: .5rem; margin-bottom: .75rem; }
+  .incident-counters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-bottom: .75rem; }
+  .incident-counter { border: 1px solid var(--line); border-radius: 10px; padding: .65rem .75rem; background: var(--thread-surface); }
+  .incident-counter strong { display: block; font-size: 1.15rem; margin-top: .15rem; }
+  .incident-counter span { color: var(--muted); font-size: .72rem; }
+  .incident-scroll-tools { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: -.25rem 0 .45rem; }
+  .incident-scroll-tools .hint { margin: 0; }
+  .incident-scroll-buttons { display: flex; gap: .35rem; flex: none; }
+  .incident-table-wrap { max-height: min(58dvh, 620px); overflow-x: auto; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; scrollbar-gutter: stable; }
+  .incident-table { width: 100%; border-collapse: collapse; min-width: 1420px; font-size: .76rem; table-layout: fixed; }
+  .incident-table th, .incident-table td { padding: .55rem .6rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .incident-table th { position: sticky; top: 0; z-index: 1; background: var(--panel); color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .03em; }
+  .incident-table tbody tr { cursor: pointer; background: var(--bg); }
+  .incident-table tbody tr:hover, .incident-table tbody tr:focus-visible { background: var(--selected-bg); outline: none; }
+  .incident-table tbody tr[aria-selected="true"] { background: var(--selected-bg); color: var(--selected-ink); }
+  .incident-table th:nth-child(1), .incident-table td:nth-child(1) { width: 82px; }
+  .incident-table th:nth-child(2), .incident-table td:nth-child(2) { width: 300px; }
+  .incident-table th:nth-child(3), .incident-table td:nth-child(3) { width: 48px; }
+  .incident-table th:nth-child(4), .incident-table td:nth-child(4) { width: 130px; }
+  .incident-table th:nth-child(5), .incident-table td:nth-child(5) { width: 130px; }
+  .incident-table th:nth-child(6), .incident-table td:nth-child(6) { width: 190px; }
+  .incident-table th:nth-child(7), .incident-table td:nth-child(7) { width: 180px; }
+  .incident-table th:nth-child(8), .incident-table td:nth-child(8) { width: 170px; }
+  .incident-table th:nth-child(9), .incident-table td:nth-child(9) { width: 190px; }
+  .incident-table .incident-title-cell { font-weight: 600; }
+  .incident-table .incident-id-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 760px) {
+    .incident-toolbar { grid-template-columns: 1fr; }
+    .incident-scroll-tools { align-items: flex-start; }
+  }
   .focus-badge { font: inherit; font-size: .68rem; color: #fff; background: var(--accent); border: 0; border-radius: 999px; padding: 2px 8px; cursor: pointer; }
   :root[data-theme-tone="dark"] .focus-badge, :root[data-color-mode="dark"]:not([data-theme-tone="light"]) .focus-badge { color: #1f1f1f; }
   .status { font-size: .78rem; color: var(--muted); min-height: 1.2em; }
@@ -3769,7 +4236,7 @@ Revision: ${STUDIO_REVISION}
       <button type="button" class="tab active" role="tab" aria-selected="true" aria-controls="threads-page" tabindex="0" data-tab="threads">Threads</button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="apps-page" tabindex="-1" data-tab="apps">Apps</button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="connectors-page" tabindex="-1" data-tab="connectors">Connectors</button>
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="incidents-page" tabindex="-1" data-tab="incidents">Incidents<span class="nyi-tag">NYI</span></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="incidents-page" tabindex="-1" data-tab="incidents">Incidents</button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" title="Coming soon">Automation<span class="nyi-tag">NYI</span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" title="Coming soon">Operations Hub<span class="nyi-tag">NYI</span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" title="Coming soon">Live Reports<span class="nyi-tag">NYI</span></button>
@@ -3785,6 +4252,15 @@ Revision: ${STUDIO_REVISION}
             <button class="btn ghost mini" id="new-thread">New Thread</button>
             <button class="btn ghost mini" id="search-threads">&#128269; Search Threads</button>
           </div>
+          <div id="thread-search-panel" hidden>
+            <label class="field-label" for="thread-search-query">Search thread titles</label>
+            <input id="thread-search-query" type="search" maxlength="120" autocomplete="off" placeholder="Thread title" />
+            <div class="row-actions">
+              <button type="button" class="btn mini" id="thread-search-submit">Search</button>
+              <button type="button" class="btn ghost mini" id="thread-search-clear">Clear</button>
+            </div>
+            <div id="thread-search-feedback" class="hint" role="status" aria-live="polite"></div>
+          </div>
           <div id="thread-list" class="row-list" role="listbox" aria-label="Threads"></div>
         </details>
         <section id="thread-detail" class="panel thread-detail" aria-label="Active thread" tabindex="-1">
@@ -3795,6 +4271,7 @@ Revision: ${STUDIO_REVISION}
           <div id="thread-log" class="chat-log" aria-live="polite">No thread selected.</div>
           <textarea id="reply-msg" aria-label="Thread message" placeholder="Ask the SRE Agent for a diagnosis or reply to the selected thread..."></textarea>
           <div class="row-actions">
+            <button type="button" class="btn ghost" id="back-to-incidents" hidden>Back to incidents</button>
             <button type="button" class="btn" id="send-reply">Send</button>
             <button type="button" class="btn ghost" id="focus-thread" hidden>Focus this thread</button>
             <button class="btn ghost" id="open-in-portal">Open in Portal &#8599;</button>
@@ -3817,7 +4294,7 @@ Revision: ${STUDIO_REVISION}
       </div>
 
       <div class="tabpage" id="connectors-page" role="tabpanel" data-page="connectors" hidden>
-        <p class="hint" id="connector-external-note" role="status" hidden>External URL agents support conversation threads only. Connect a native Azure SRE Agent to view or manage its connectors.</p>
+        <p class="hint" id="connector-external-note" role="status" hidden>Connectors are unavailable for external URL agents. Connect a native Azure SRE Agent to view or manage connectors.</p>
         <div id="connector-native-content">
           <div class="panel">
             <h2>Connectors attached to this SRE Agent</h2>
@@ -3843,21 +4320,41 @@ Revision: ${STUDIO_REVISION}
 
       <div class="tabpage" id="incidents-page" role="tabpanel" data-page="incidents" hidden>
         <div class="panel">
-          <h2>Create incident</h2>
-          <input id="incident-title" placeholder="Title" />
-          <select id="incident-severity">
-            <option value="critical">Critical</option>
-            <option value="high" selected>High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-          <textarea id="incident-desc" placeholder="Description (ICM/S360 reference, symptoms, etc.)"></textarea>
-          <input id="incident-services" placeholder="Affected services (comma separated)" />
-          <button class="btn" id="create-incident">Create incident</button>
-        </div>
-        <div class="panel">
-          <h2>Active incidents</h2>
-          <div id="incident-list" class="row-list"></div>
+          <div class="panel-head">
+            <h2>Incidents</h2>
+            <div class="head-actions">
+              <button type="button" class="btn ghost mini" id="open-incidents-portal">Open incidents in Portal &#8599;</button>
+              <button type="button" class="btn ghost mini" id="refresh-incidents">Refresh</button>
+            </div>
+          </div>
+          <div id="incidents-access" class="status err" role="alert" hidden></div>
+          <p id="incidents-scope-note" class="hint"></p>
+          <div class="incident-counters" aria-label="Incident summary">
+            <div class="incident-counter"><span>Incident status</span><strong id="incident-status-count">0 active</strong></div>
+            <div class="incident-counter"><span>Agent status</span><strong id="agent-status-count">0 active</strong></div>
+          </div>
+          <div class="incident-toolbar">
+            <input id="incident-search" type="search" aria-label="Search incidents" placeholder="Search incident ID, title, or response plan" />
+            <select id="incident-status-filter" aria-label="Filter incidents by status">
+              <option value="">All statuses</option>
+              <option value="Active">Active</option>
+              <option value="Mitigated">Mitigated</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+            <button type="button" class="btn ghost" id="search-incidents">Search</button>
+            <span id="incident-result-count" class="status" role="status"></span>
+          </div>
+          <div class="incident-scroll-tools">
+            <p class="hint">Use Shift + mouse wheel, the horizontal scrollbar, or the arrow buttons to view all columns.</p>
+            <div class="incident-scroll-buttons">
+              <button type="button" class="btn ghost mini" id="incident-scroll-left" aria-label="Scroll incident columns left">&#8592;</button>
+              <button type="button" class="btn ghost mini" id="incident-scroll-right" aria-label="Scroll incident columns right">&#8594;</button>
+            </div>
+          </div>
+          <div id="incident-list" class="incident-table-wrap" aria-label="Incident threads"></div>
+          <div class="row-actions">
+            <button type="button" class="btn ghost" id="load-more-incidents">Load more</button>
+          </div>
         </div>
       </div>
   </div>
@@ -3886,6 +4383,10 @@ Revision: ${STUDIO_REVISION}
   var draftThread = null;
   var lastTranscriptKey = '';
   var selectedFavoriteKey = '';
+  var selectedIncidentId = '';
+  var incidentReturnState = null;
+  var incidentQueryTimer = null;
+  var incidentViewKey = '';
   var NEW_THREAD_TEMPLATE = 'Investigate a failing app or service:\\n\\nResource / service:\\nSymptoms:\\nWhen it started:\\nRecent changes or deployments:\\nWhat I already checked:';
   var configCard = document.getElementById('azure-config-card');
   var configSummaryTouched = false;
@@ -3961,7 +4462,7 @@ Revision: ${STUDIO_REVISION}
       .catch(function (error) { setStatus('Could not remove Favorite: ' + error.message, true); });
   });
 
-  function postJson(url, payload) {
+  function postJson(url, payload, reportError) {
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}) })
       .then(function (r) {
         return r.json().then(function (data) {
@@ -3970,7 +4471,7 @@ Revision: ${STUDIO_REVISION}
         });
       })
       .catch(function (err) {
-        setStatus(err && err.message || String(err), true);
+        if (reportError !== false) setStatus(err && err.message || String(err), true);
         throw err;
       });
   }
@@ -3999,11 +4500,84 @@ Revision: ${STUDIO_REVISION}
       tabs[next].focus();
     });
   });
-  var searchThreads = document.getElementById('search-threads');
-  if (searchThreads) {
-    searchThreads.addEventListener('click', function () {
-      activateTab('threads');
-      setStatus('Thread search coming soon - showing all threads for now.');
+  var threadSearch = { open: false, query: '', results: null, busy: false, error: '', generation: 0, agentKey: '' };
+  document.getElementById('search-threads').addEventListener('click', function () {
+    activateTab('threads');
+    if (!threadsCard.open) threadsCard.open = true;
+    threadSearch.open = true;
+    renderThreadSearch();
+    document.getElementById('thread-search-query').focus();
+  });
+  function renderThreadSearch() {
+    document.getElementById('thread-search-panel').hidden = !threadSearch.open;
+    var feedback = document.getElementById('thread-search-feedback');
+    var label = state.agent && state.agent.external ? 'Matching titles across the agent (latest 25 matches).'
+      : 'Search only the threads currently loaded in this panel.';
+    feedback.textContent = threadSearch.error || (threadSearch.busy ? 'Searching thread titles...' :
+      threadSearch.results ? threadSearch.results.length + ' matching thread(s). ' + label : label);
+    feedback.className = 'hint' + (threadSearch.error ? ' err' : '');
+    var submit = document.getElementById('thread-search-submit');
+    submit.disabled = threadSearch.busy;
+  }
+  function clearThreadSearch() {
+    threadSearch.generation++;
+    threadSearch.open = false;
+    threadSearch.query = '';
+    threadSearch.results = null;
+    threadSearch.busy = false;
+    threadSearch.error = '';
+    document.getElementById('thread-search-query').value = '';
+    renderBody(state);
+  }
+  document.getElementById('thread-search-clear').addEventListener('click', clearThreadSearch);
+  document.getElementById('thread-search-query').addEventListener('input', function () {
+    threadSearch.generation++;
+    threadSearch.query = this.value;
+    threadSearch.results = null;
+    threadSearch.busy = false;
+    threadSearch.error = '';
+    renderBody(state);
+  });
+  document.getElementById('thread-search-query').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') { event.preventDefault(); submitThreadSearch(); }
+    if (event.key === 'Escape') clearThreadSearch();
+  });
+  document.getElementById('thread-search-submit').addEventListener('click', submitThreadSearch);
+  function submitThreadSearch() {
+    var query = document.getElementById('thread-search-query').value.trim();
+    var generation = ++threadSearch.generation;
+    threadSearch.results = null;
+    threadSearch.query = query;
+    threadSearch.error = '';
+    if (!query || query.length > 120) {
+      threadSearch.error = 'Enter a thread title search of 1 to 120 characters.';
+      renderBody(state);
+      return;
+    }
+    if (!state.agent) {
+      threadSearch.error = 'Select an SRE Agent first.';
+      renderBody(state);
+      return;
+    }
+    if (!state.agent.external) {
+      threadSearch.results = (state.threads || []).filter(function (thread) {
+        return threadLabel(thread).toLowerCase().includes(query.toLowerCase());
+      });
+      renderBody(state);
+      return;
+    }
+    threadSearch.busy = true;
+    renderBody(state);
+    postJson('/search-threads', { query: query }, false).then(function (response) {
+      if (generation !== threadSearch.generation) return;
+      threadSearch.results = response.result.threads;
+      threadSearch.busy = false;
+      renderBody(state);
+    }).catch(function (error) {
+      if (generation !== threadSearch.generation) return;
+      threadSearch.error = 'Thread search failed: ' + error.message;
+      threadSearch.busy = false;
+      renderBody(state);
     });
   }
   function activateTab(name) {
@@ -4130,13 +4704,23 @@ Revision: ${STUDIO_REVISION}
   }
   function renderBody(s) {
     renderFavorites(s);
+    var currentAgentKey = connectionKey(s.agent) + '|' + (s.subscription || '');
+    if (threadSearch.agentKey !== currentAgentKey) {
+      threadSearch.agentKey = currentAgentKey;
+      threadSearch.generation++;
+      threadSearch.results = null;
+      threadSearch.busy = false;
+      threadSearch.error = '';
+    }
+    renderThreadSearch();
     var external = Boolean(s.agent && s.agent.external);
     document.querySelectorAll('.tab[data-tab]').forEach(function (tab) {
-      var unsupported = external && tab.dataset.tab !== 'threads' && tab.dataset.tab !== 'apps' && tab.dataset.tab !== 'connectors';
+      var unsupported = external && tab.dataset.tab !== 'threads' && tab.dataset.tab !== 'apps' &&
+        tab.dataset.tab !== 'connectors' && tab.dataset.tab !== 'incidents';
       tab.disabled = unsupported;
       tab.setAttribute('aria-disabled', String(unsupported));
-      tab.title = unsupported ? 'External agents support conversation threads only.'
-        : tab.dataset.tab === 'incidents' ? 'Incident list and creation available; other incident features not yet implemented' : '';
+      tab.title = unsupported ? 'External agents support threads, app diagnosis, and read-only incidents only.'
+        : tab.dataset.tab === 'incidents' ? 'Read-only incident list and details' : '';
     });
     if (external && document.querySelector('.tab.active[data-tab]')?.disabled) activateTab('threads');
 
@@ -4193,14 +4777,22 @@ Revision: ${STUDIO_REVISION}
 
     renderCmdLog(s.commands || []);
 
-    var displayedThreads = draftThread ? [draftThread].concat(sortThreads(s.threads || [])) : sortThreads(s.threads || []);
+    var shownThreads = threadSearch.open && threadSearch.busy ? []
+      : threadSearch.open && threadSearch.results !== null ? threadSearch.results : s.threads || [];
+    var displayedThreads = draftThread ? [draftThread].concat(sortThreads(shownThreads)) : sortThreads(shownThreads);
     var activeThread = displayedActiveThread(s, draftThread);
-    renderRowList(document.getElementById('thread-list'), displayedThreads, function (t) {
+    var threadList = document.getElementById('thread-list');
+    renderRowList(threadList, displayedThreads, function (t) {
       var status = threadStatusLabel(t);
       var label = escapeHtml(threadLabel(t));
       return '<span class="thread-title" title="' + label + '">' + label + '</span>' +
         (status ? '<span class="thread-status" title="' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>' : '');
     }, function (t) { openThread(t.id || t.threadId); }, activeThread && (activeThread.id || activeThread.threadId));
+    if (threadSearch.open && threadSearch.busy && !displayedThreads.length) {
+      threadList.textContent = 'Searching thread titles...';
+    } else if (threadSearch.open && threadSearch.results !== null && !displayedThreads.length) {
+      threadList.textContent = 'No matching thread titles. Clear search to show the loaded threads.';
+    }
 
     var log = document.getElementById('thread-log');
     var transcriptKey = transcriptRenderKey(activeThread);
@@ -4213,16 +4805,123 @@ Revision: ${STUDIO_REVISION}
     var focusButton = document.getElementById('focus-thread');
     focusButton.hidden = !activeThreadId || Boolean(activeThread && activeThread.draft);
     focusButton.textContent = focusedHere ? 'Unfocus' : 'Focus this thread';
+    document.getElementById('back-to-incidents').hidden = !incidentReturnState;
     var focusBadge = document.getElementById('focus-badge');
     focusBadge.hidden = !s.focusedThreadId;
     focusBadge.textContent = s.focusedThreadId ? 'Focused: ' + (s.focusedThreadTitle || s.focusedThreadId) : '';
 
-    renderRowList(document.getElementById('incident-list'), s.incidents, function (i) {
-      return '<span>' + escapeHtml(textOf(i.title) || i.id || '') + '</span><span class="tag">' + escapeHtml(textOf(i.severity) || textOf(i.status) || '') + '</span>';
-    });
+    renderIncidents(s);
 
     renderConnectors(s);
     renderConfigDrift(s.configDrift);
+  }
+
+  function renderIncidents(s) {
+    var items = Array.isArray(s.incidents) ? s.incidents : [];
+    var list = document.getElementById('incident-list');
+    var nextViewKey = [
+      s.agent && (s.agent.id || s.agent.endpoint || s.agent.name),
+      s.incidentQuery || '',
+      s.incidentStatusFilter || '',
+    ].join('|');
+    var sameView = nextViewKey === incidentViewKey;
+    var priorScrollTop = sameView ? list.scrollTop : 0;
+    var priorScrollLeft = sameView ? list.scrollLeft : 0;
+    if (!sameView) {
+      document.getElementById('incident-search').value = s.incidentQuery || '';
+      document.getElementById('incident-status-filter').value = s.incidentStatusFilter || '';
+    }
+    incidentViewKey = nextViewKey;
+    var error = document.getElementById('incidents-access');
+    error.textContent = s.incidentsError || '';
+    error.hidden = !s.incidentsError;
+    var scope = document.getElementById('incidents-scope-note');
+    scope.textContent = s.incidentsHasMore
+      ? 'Server-filtered incident threads. ' + (s.incidentsNextSkip || 0) + ' matching rows scanned; load more for the next bounded page.'
+      : 'Server-filtered agent-local incident threads.';
+    var loadMore = document.getElementById('load-more-incidents');
+    loadMore.hidden = !s.incidentsHasMore;
+    loadMore.disabled = Boolean(s.busy);
+    if (s.incidentsError) {
+      document.getElementById('incident-status-count').textContent = 'Unavailable';
+      document.getElementById('agent-status-count').textContent = 'Unavailable';
+      document.getElementById('incident-result-count').textContent = 'Incident list unavailable';
+      document.getElementById('incident-list').innerHTML =
+        '<div class="status err">Could not load incidents. Refresh after resolving the access or service error.</div>';
+      syncIncidentScrollButtons();
+      return;
+    }
+    var counts = s.incidentCounts || {};
+    document.getElementById('incident-status-count').textContent =
+      Number(counts.active || 0) + ' active \xB7 ' + Number(counts.mitigated || 0) + ' mitigated';
+    document.getElementById('agent-status-count').textContent =
+      Number(counts.completed || 0) + ' completed \xB7 ' + Number(counts.inProgress || 0) + ' in progress';
+    var filtered = items;
+    if (!filtered.some(function (item) { return item.id === selectedIncidentId; })) {
+      selectedIncidentId = filtered[0] && filtered[0].id || '';
+    }
+    var isRefined = Boolean(s.incidentQuery || s.incidentStatusFilter);
+    document.getElementById('search-incidents').disabled = Boolean(s.busy);
+    document.getElementById('incident-result-count').textContent = s.busy && s.status === 'Filtering incidents...'
+      ? 'Filtering incidents...'
+      : isRefined
+      ? items.length + ' matching incident' + (items.length === 1 ? '' : 's') +
+        ' loaded \xB7 ' + Number(counts.total || 0) + ' total incidents'
+      : items.length + ' of ' + Number(counts.total || items.length) + ' incident' +
+        (Number(counts.total || items.length) === 1 ? '' : 's') + ' loaded';
+    if (!filtered.length) {
+      list.innerHTML = '<div class="status">' +
+        (s.incidentsHasMore
+          ? 'No incidents were returned in this page. More matching pages are available.'
+          : 'No incident threads match this server-side search and status filter.') +
+        '</div>';
+      syncIncidentScrollButtons();
+      return;
+    }
+    var value = function (item, key) { return escapeHtml(textOf(item[key]) || '\u2014'); };
+    list.innerHTML = '<table class="incident-table"><thead><tr>' +
+      '<th>Incident ID</th><th>Title</th><th aria-label="Severity">Sev</th><th>Incident status</th><th>Agent status</th>' +
+      '<th>Created</th><th>Owning service</th><th>Owning team</th><th>Response plan</th>' +
+      '</tr></thead><tbody>' + filtered.map(function (incident) {
+        var active = incident.id === selectedIncidentId;
+        return '<tr tabindex="0" data-incident-id="' + escapeHtml(incident.id) + '" aria-selected="' + active + '">' +
+          '<td class="incident-id-cell" title="' + escapeHtml(incident.id) + '" aria-label="Incident ID ' +
+            escapeHtml(incident.id) + '">' + escapeHtml(incident.id) + '</td>' +
+          '<td class="incident-title-cell">' + value(incident, 'title') + '</td>' +
+          '<td>' + value(incident, 'severity') + '</td><td>' + value(incident, 'status') + '</td>' +
+          '<td>' + value(incident, 'agentStatus') + '</td><td>' + value(incident, 'date') + '</td>' +
+          '<td>' + value(incident, 'owningService') + '</td><td>' + value(incident, 'owningTeam') + '</td>' +
+          '<td>' + value(incident, 'responsePlan') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    function selectIncidentRow(row) {
+      var incident = items.find(function (item) { return item.id === row.dataset.incidentId; });
+      if (!incident || !incident.threadId) {
+        setStatus('This incident does not expose a verified thread link.', true);
+        return;
+      }
+      selectedIncidentId = incident.id;
+      incidentReturnState = {
+        query: document.getElementById('incident-search').value,
+        status: document.getElementById('incident-status-filter').value,
+        selectedId: incident.id,
+        scrollTop: list.scrollTop,
+        scrollLeft: list.scrollLeft,
+      };
+      activateTab('threads');
+      document.getElementById('back-to-incidents').hidden = false;
+      openThread(incident.threadId);
+    }
+    list.querySelectorAll('tbody tr').forEach(function (row) {
+      row.addEventListener('click', function () { selectIncidentRow(row); });
+      row.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        selectIncidentRow(row);
+      });
+    });
+    list.scrollTop = priorScrollTop;
+    list.scrollLeft = priorScrollLeft;
+    syncIncidentScrollButtons();
   }
 
   function renderAgentSummary(s) {
@@ -4240,7 +4939,7 @@ Revision: ${STUDIO_REVISION}
       return;
     }
     var items = s.agent.external
-      ? [['Connection', 'External agent (conversation threads only)'], ['Endpoint', s.agent.endpoint || 'unknown'],
+      ? [['Connection', 'External agent (threads and read-only incidents)'], ['Endpoint', s.agent.endpoint || 'unknown'],
         ['Portal', s.agent.portalUrl ? 'Registered external-agent link available' : 'Paste a portal link to open in Portal']]
       : [['Endpoint', s.agent.endpoint || 'unknown'],
         ['Resource group', s.agent.resourceGroup || 'unknown'],
@@ -4846,18 +5545,39 @@ Revision: ${STUDIO_REVISION}
   });
 
   document.getElementById('app-resource-select').addEventListener('change', function (e) {
-    if (e.target.value) document.getElementById('app-resource').value = e.target.value;
+    if (e.target.value) document.getElementById('app-resource').value = '';
+  });
+  document.getElementById('app-resource').addEventListener('input', function () {
+    if (this.value.trim()) document.getElementById('app-resource-select').value = '';
   });
 
   document.getElementById('diagnose-app').addEventListener('click', function () {
     var picked = document.getElementById('app-resource-select').value;
-    var typed = document.getElementById('app-resource').value;
+    var typed = document.getElementById('app-resource').value.trim();
+    var target = picked || typed;
+    if (!target) { setStatus('Pick or enter an app resource first.', true); return; }
+    var button = this;
+    button.disabled = true;
     postJson('/diagnose-app', {
-      resourceIdOrName: typed || picked,
+      resourceIdOrName: target,
       note: document.getElementById('app-note').value,
       appSubscription: document.getElementById('app-sub-select').value,
-    }).then(function () {
+    }).then(function (response) {
+      var created = response.result && response.result.investigation;
+      if (!threadId(created)) throw new Error('The SRE Agent did not confirm a new diagnosis thread.');
+      draftThread = null;
+      if (threadId(state.activeThread) !== threadId(created) || !state.activeThread.messages?.length) {
+        state.activeThread = created;
+      }
+      state.threads = upsertThread(state.threads, state.activeThread);
       activateTab('threads');
+      renderBody(state);
+      scheduleThreadPoll(state.activeThread);
+      document.getElementById('thread-detail').focus({ preventScroll: true });
+    }).catch(function (error) {
+      setStatus('Diagnosis failed: ' + error.message, true);
+    }).finally(function () {
+      button.disabled = false;
     });
     var configCard = document.getElementById('azure-config-card');
     if (configCard) configCard.open = false;
@@ -5007,13 +5727,100 @@ Revision: ${STUDIO_REVISION}
     openSelectedThreadInPortal();
   });
 
-  document.getElementById('create-incident').addEventListener('click', function () {
-    postJson('/create-incident', {
-      title: document.getElementById('incident-title').value,
-      severity: document.getElementById('incident-severity').value,
-      description: document.getElementById('incident-desc').value,
-      services: document.getElementById('incident-services').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+  function submitIncidentQuery() {
+    clearTimeout(incidentQueryTimer);
+    incidentQueryTimer = null;
+    postJson('/query-incidents', {
+      query: document.getElementById('incident-search').value,
+      status: document.getElementById('incident-status-filter').value,
     });
+  }
+  function queryIncidents() {
+    clearTimeout(incidentQueryTimer);
+    incidentQueryTimer = setTimeout(submitIncidentQuery, 250);
+  }
+  document.getElementById('incident-search').addEventListener('input', queryIncidents);
+  document.getElementById('incident-search').addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    submitIncidentQuery();
+  });
+  document.getElementById('incident-status-filter').addEventListener('change', submitIncidentQuery);
+  document.getElementById('search-incidents').addEventListener('click', submitIncidentQuery);
+  document.getElementById('refresh-incidents').addEventListener('click', function () {
+    postJson('/refresh-incidents');
+  });
+  document.getElementById('load-more-incidents').addEventListener('click', function () {
+    postJson('/load-more-incidents');
+  });
+  function syncIncidentScrollButtons() {
+    var list = document.getElementById('incident-list');
+    var max = Math.max(0, list.scrollWidth - list.clientWidth);
+    document.getElementById('incident-scroll-left').disabled = list.scrollLeft <= 1;
+    document.getElementById('incident-scroll-right').disabled = list.scrollLeft >= max - 1;
+  }
+  var incidentList = document.getElementById('incident-list');
+  incidentList.addEventListener('scroll', syncIncidentScrollButtons);
+  window.addEventListener('resize', syncIncidentScrollButtons);
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(syncIncidentScrollButtons).observe(incidentList);
+  }
+  document.getElementById('incident-scroll-left').addEventListener('click', function () {
+    var list = document.getElementById('incident-list');
+    list.scrollBy({ left: -Math.max(320, list.clientWidth * .8), behavior: 'auto' });
+  });
+  document.getElementById('incident-scroll-right').addEventListener('click', function () {
+    var list = document.getElementById('incident-list');
+    list.scrollBy({ left: Math.max(320, list.clientWidth * .8), behavior: 'auto' });
+  });
+  document.getElementById('back-to-incidents').addEventListener('click', function () {
+    if (!incidentReturnState) return;
+    var saved = incidentReturnState;
+    incidentReturnState = null;
+    selectedIncidentId = saved.selectedId || '';
+    document.getElementById('incident-search').value = saved.query || '';
+    activateTab('incidents');
+    renderIncidents(state);
+    document.getElementById('incident-status-filter').value = saved.status || '';
+    renderIncidents(state);
+    requestAnimationFrame(function () {
+      document.getElementById('incident-list').scrollTop = saved.scrollTop || 0;
+      document.getElementById('incident-list').scrollLeft = saved.scrollLeft || 0;
+      syncIncidentScrollButtons();
+      var selected = document.querySelector('#incident-list tr[aria-selected="true"]');
+      if (selected) selected.focus({ preventScroll: true });
+    });
+  });
+  document.getElementById('open-incidents-portal').addEventListener('click', function () {
+    if (!state.agent) { setStatus('Select an SRE Agent first.', true); return; }
+    try {
+      var url;
+      if (state.agent.external) {
+        var portal = new URL(state.agent.portalUrl || '');
+        var endpoints = portal.searchParams.getAll('agentUrl');
+        var endpoint = endpoints.length === 1 ? new URL(endpoints[0]) : null;
+        if (portal.protocol !== 'https:' || portal.host !== 'sre.azure.com' ||
+            !/^\\/externalagents\\/[^/]+\\/?$/i.test(portal.pathname) || !endpoint ||
+            endpoint.origin !== state.agent.endpoint || endpoint.protocol !== 'https:' ||
+            !endpoint.hostname.endsWith('.azuresre.ai') || endpoint.username || endpoint.password ||
+            endpoint.port || endpoint.pathname !== '/' || endpoint.search || endpoint.hash) {
+          throw new Error('Paste the registered external-agent portal link to open incidents in Portal.');
+        }
+        portal.hash = '/views/incidents';
+        url = portal.href;
+      } else {
+        if (!state.subscription || !state.agent.resourceGroup || !state.agent.name) {
+          throw new Error('The connected agent does not have a complete Azure resource scope.');
+        }
+        url = 'https://sre.azure.com/agents/subscriptions/' + encodeURIComponent(state.subscription) +
+          '/resourceGroups/' + encodeURIComponent(state.agent.resourceGroup) +
+          '/providers/Microsoft.App/agents/' + encodeURIComponent(state.agent.name) +
+          '/views/incidents';
+      }
+      window.open(url, '_blank', 'noopener');
+    } catch (error) {
+      setStatus(error.message, true);
+    }
   });
 
   var es = new EventSource('/events');
@@ -5050,21 +5857,35 @@ export {
   clearThreadContext,
   connectorNameOwnedBy,
   connectorOwnerKey,
+  createThread,
+  dedupeIncidents,
+  deriveIncidents,
+  diagnoseApp,
+  externalAgentRouteAllowed,
   getThread,
+  incidentContractMetadata,
+  incidentThreadFilter,
+  incidentsPortalUrl,
   isAgentContextSwitch,
   isNoQueryableSubscriptionsError,
+  listActiveIncidents,
   listAgentsForSelection,
   listThreads,
   loadAgentsForSub,
+  loadOptionalIncidents,
   loadOptionalScheduledTasks,
   openSharedAgentReference,
   parseExternalAgentReference,
   parseSharedAgentReference,
+  projectIncident,
+  projectIncidentCounts,
   readFavorites,
   renderHtml,
+  retainInitialThreadPrompt,
   selectAgent,
   selectSavedFavorite,
   shortError2 as shortError,
+  threadTitleFilter,
   updateFavorite,
   waitForNewAgentReplies
 };

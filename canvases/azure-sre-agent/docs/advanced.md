@@ -25,17 +25,17 @@ below, or the canvas-only fallback at the end.
 
 ## Optional: pin the full plugin to an exact release
 
-For a reproducible 0.2.6 full-plugin install after its production tag is
+For a reproducible 0.2.7 full-plugin install after its production tag is
 published, use the versioned and source-qualified tag. In a terminal with Git
 and Copilot CLI, run:
 
 ```bash
-SRE_TAG=$(git ls-remote --refs --tags https://github.com/microsoft/azure-dev-tools.git 'refs/tags/azure-sre-agent-v0-2-6-*' | awk '{sub(/^refs\/tags\//, "", $2); print $2}')
-if [ "$(printf '%s\n' "$SRE_TAG" | grep -c '^azure-sre-agent-v0-2-6-')" -eq 1 ]; then
+SRE_TAG=$(git ls-remote --refs --tags https://github.com/microsoft/azure-dev-tools.git 'refs/tags/azure-sre-agent-v0-2-7-*' | awk '{sub(/^refs\/tags\//, "", $2); print $2}')
+if [ "$(printf '%s\n' "$SRE_TAG" | grep -c '^azure-sre-agent-v0-2-7-')" -eq 1 ]; then
   git clone --depth 1 --branch "$SRE_TAG" https://github.com/microsoft/azure-dev-tools.git azure-sre-agent-plugin &&
     copilot plugin install ./azure-sre-agent-plugin/canvases/azure-sre-agent
 else
-  echo "Expected exactly one published SRE 0.2.6 tag" >&2
+  echo "Expected exactly one published SRE 0.2.7 tag" >&2
 fi
 ```
 
