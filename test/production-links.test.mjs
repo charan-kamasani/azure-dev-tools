@@ -85,13 +85,18 @@ test("Cost Health package and customer README match the current catalog", () => 
   assert.equal(release.plugin.extension.entry,
     "com.github.copilot/extensions/azure-cost-health-check/extension.mjs");
   assert.match(readme, /install \*\*Azure Cost Health Check\*\*/);
-  assert.match(readme, /copilot plugin install azure-cost-health-check@awesome-copilot/);
+  assert.match(readme, /copilot plugin install azure-cost-health-check@azure-dev-tools/);
+  assert.doesNotMatch(readme, /awesome-copilot/);
+  assert.match(readme, /microsoft\/azure-dev-tools\/tree\/azure-cost-health-check-latest\/canvases\/azure-cost-health-check\/com\.github\.copilot\/extensions\/azure-cost-health-check/);
+  assert.match(readme, /microsoft\/azure-dev-tools\/blob\/azure-cost-health-check-latest\/canvases\/azure-cost-health-check\/README\.md/);
+  assert.match(readme, /1\. Use \*\*Choose subscriptions\*\*/);
   assert.match(readme, /Open Azure Cost Health Check in real mode for my subscription/);
   assert.match(readme, /A loading or permission-limited\s+section is not zero cost/);
   assert.doesNotMatch(readme, /\bcandidate\b|receipt|verification evidence|release process/i);
   assert.match(readme, /\[installation notes\]\(docs\/implementation\.md#install\)/);
   assert.match(implementation, /com\.github\.copilot\/extensions\/azure-cost-health-check/);
-  assert.match(implementation, /If the `azure-cost-health-check-latest` tag is\s+available/i);
+  assert.match(implementation, /If the `azure-cost-health-check-latest` tag is\s+updated to 0\.4\.5/i);
+  assert.match(implementation, /--branch azure-cost-health-check-v0-4-5-bf89cc8/);
 });
 
 test("current builder install and bundled quickstart do not claim an active release hold", () => {

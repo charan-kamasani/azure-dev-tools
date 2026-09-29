@@ -34,10 +34,9 @@ copilot skill list
 
 Use this repository's [production package catalog](../README.md) or a
 published source-qualified production tag when following install instructions.
-Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 are **review candidates**;
-their planned immutable tags and the `-latest` extension URLs in the package
-READMEs are not installation targets for these versions until the production
-PR merges and both tags are published. The previous 0.5.2/0.1.2 tags remain
+Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 have immutable tags and
+matching `-latest` extension URLs at production commit
+`bf0bd07520d004845b727bb40932c24a6e69bb8d`. The previous 0.5.2/0.1.2 tags remain
 available; the intervening 0.5.3/0.1.3 candidates were never tagged. The older immutable
 0.5.1/0.1.1 canvas package READMEs retain public
 source-distribution links, **not** this repository's
@@ -55,16 +54,43 @@ The package includes its `com.github.copilot/extensions/azure-cost-health-check`
 extension, launcher skill, protected `assets/preview.png`, third-party notices,
 and mutable `docs/azure-cost-health-check.png` customer screenshot. Its customer
 README's conditional `-latest` URL is usable only after a private reviewed
-merge and release-tag publication. The source's merged-main
-`canvases/azure-cost-health-check/test/import.test.mjs:17` still expects an
-obsolete nested extension path (one source test fails); this is disclosed,
-not evidence of a failed packaged plugin. The exact merged-main package passed
-source `verify:canvas` and isolated offline packaged-browser acceptance.
+merge and release-tag publication. At that older source revision,
+`canvases/azure-cost-health-check/test/import.test.mjs:17` expected an
+obsolete nested extension path (one source test failed); this was a source
+test defect, not a failed packaged plugin. The 0.4.5 source tests no longer
+have that defect. The older merged-main package passed source `verify:canvas`
+and isolated offline packaged-browser acceptance.
 This private package uses the same repository license and bundled vendor-notice
 model as the other marketplace products; the source repository's separate
 public-disclosure staging workflow is not part of this release. Private
 pre-tag qualification uses local-only synthetic tags; native App installation
 remains unverified.
+
+Cost Health 0.4.5 is built from the exact
+[merged source main revision](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/bf89cc8f67bf15d7fb538336c5482818b4bb5b01)
+after reviewed source [sign-in #197](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/197)
+and [subscription-picker #196](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/196)
+fixes. Source [#201](https://github.com/coreai-microsoft/canvases-cloud-foundation/pull/201)
+also precedes this exact merged source revision; it changes Hosted Skills, not
+Cost Health.
+The 36-file `azure-cost-health-check` source export passed `verify:canvas`;
+all source-export protected files are byte-identical to the production
+candidate. Its 33-file protected-only
+[SHA256SUMS](../canvases/azure-cost-health-check/SHA256SUMS) has SHA-256
+`e8267cfd0ce6656d265a61cf3a2e5b77eaa07289d8d1d6f926661e89c187a298`;
+source `checksums.json` has SHA-256
+`3b0c6123ca9991fd1de9272588bea9cfcb297809bdc33adc4b5287ff38e54caf`.
+The retained customer README is a disclosed documentation-only production
+overlay replacing the source's `awesome-copilot` install commands with
+`microsoft/azure-dev-tools`, plus explicit latest and pinned-version
+instructions, first-run steps, and the subscription-picker loading behavior.
+The updated implementation notes include the source-reviewed sign-in and
+picker guidance and the production version-pinned install.
+The source Cost syntax and 99 source unit/integration tests passed; native
+marketplace/App installation was not verified. The 0.4.5 tag and `-latest`
+update must wait for the paired Hosted Skills and Resources Query immutable
+tags and all normal review and release gates. Until then,
+`azure-cost-health-check-latest` remains on 0.4.3.
 
 ## Build canvas apps
 
@@ -97,9 +123,10 @@ Their protected `checksums.json` digests are respectively
 `2dc198ffa482973c772723e161db8bc5d76e1988f11d1c9480495ad90d7cad4f`
 and `e9a448a794d025d2dc48e3234c957293287af7adfd49a7f1ffe82b4de8e1e881`.
 The source-qualified `azure-functions-hosted-skills-v0-5-5-bf89cc8` and
-`azure-resources-query-v0-1-5-bf89cc8` tags are planned, not published.
-Strict verification requires real tags after approval
-and the production squash merge.
+`azure-resources-query-v0-1-5-bf89cc8` immutable tags, and their respective
+`-latest` tags, identify the approved production squash merge
+`bf0bd07520d004845b727bb40932c24a6e69bb8d`. Cost Health 0.4.5
+remains a separate candidate until its own reviewed merge and tags.
 
 For historical context, the earlier Hosted Skills 0.5.3 and Azure Resources
 Query 0.1.3 candidates were built

@@ -2,8 +2,16 @@
   "schemaVersion": 2,
   "format": "plugin",
   "name": "azure-cost-health-check",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "mutableDocumentation": true,
+  "legalNotices": [
+    "notices/echarts-LICENSE.txt",
+    "notices/echarts-NOTICE-LICENSE.txt",
+    "notices/vega-LICENSE.txt",
+    "notices/vega-embed-LICENSE.txt",
+    "notices/vega-lite-LICENSE.txt",
+    "notices/zrender-LICENSE.txt"
+  ],
   "plugin": {
     "manifest": ".github/plugin/plugin.json",
     "extension": {
@@ -66,8 +74,8 @@
   },
   "build": {
     "esbuild": "0.25.12",
-    "lockSha256": "687d1e8ad94028919bd8cee0a911f63cdeb2d0947e4094e5b881fb5bbda10242",
-    "inputSha256": "6cc65f9242ad4d504d8acaf3357e5421d75cc59c3a399e7d0aa206e1f4345c47"
+    "lockSha256": "0172a79caa720e5eac81e6db0c203ab705ea3aecbe5fada39cb48f954fe78488",
+    "inputSha256": "6027bebb5ca4823a749081a791c0c6ce1fcab0ac0a8dc71bfa5937ecba4af3c8"
   },
   "dependencies": [
     {

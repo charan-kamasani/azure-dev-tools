@@ -57,7 +57,7 @@ test("requires release tags for full verification, then checks every catalog plu
   assert.ok(results[0].startsWith(`azure-functions-hosted-skills@${versionOf("azure-functions-hosted-skills")} azure-functions-hosted-skills-v`));
   assert.ok(results[1].startsWith(`azure-resources-query@${versionOf("azure-resources-query")} azure-resources-query-v`));
   assert.match(results[2], /canvas-authoring@0\.1\.1 canvas-authoring-v0-1-1-/);
-  assert.match(results[3], /azure-cost-health-check@0\.4\.4 azure-cost-health-check-v0-4-4-/);
+  assert.match(results[3], /azure-cost-health-check@0\.4\.5 azure-cost-health-check-v0-4-5-/);
   assert.match(results[4], /azure-sre-agent@0\.2\.7 azure-sre-agent-v0-2-7-/);
 });
 
@@ -104,14 +104,14 @@ test("candidate rejects corrupted protected payloads and checksum receipts", () 
     writeFileSync(runtime, Buffer.concat([originalRuntime, Buffer.from("\n// Corrupted payload\n")]));
     git("add", "--", packagePath);
     git("commit", "--quiet", "-m", "Corrupt candidate payload");
-    assert.throws(verify, /protected release checksum differs|plugin file differs from checksum receipt/);
+    assert.throws(verify, /immutable package files differ from the reviewed release tag|protected release checksum differs|plugin file differs from checksum receipt/);
 
     writeFileSync(runtime, originalRuntime);
     const receipt = join(clone, packagePath, "SHA256SUMS");
     writeFileSync(receipt, readFileSync(receipt, "utf8").split("\n").slice(1).join("\n"));
     git("add", "--", packagePath);
     git("commit", "--quiet", "-m", "Corrupt candidate receipt");
-    assert.throws(verify, /checksum receipt must cover every protected plugin file exactly once/);
+    assert.throws(verify, /current checksum receipt differs from immutable release tag|checksum receipt must cover every protected plugin file exactly once/);
   } finally {
     rmSync(checkout, { recursive: true, force: true });
   }
@@ -146,9 +146,9 @@ test("a subsequent Cost candidate version validates without a verifier edit", ()
     ]) {
       const value = JSON.parse(read(path));
       if (path === ".github/plugin/marketplace.json") {
-        value.plugins.find(({ name }) => name === "azure-cost-health-check").version = "0.4.5";
+        value.plugins.find(({ name }) => name === "azure-cost-health-check").version = "0.4.6";
       } else {
-        value.version = "0.4.5";
+        value.version = "0.4.6";
       }
       writeJson(path, value);
     }

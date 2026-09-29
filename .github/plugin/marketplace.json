@@ -29,7 +29,7 @@
     {
       "name": "azure-cost-health-check",
       "description": "Review Azure spend, forecasts, native alerts, and AI billing with a read-only canvas and launcher skill.",
-      "version": "0.4.4",
+      "version": "0.4.5",
       "source": "canvases/azure-cost-health-check"
     },
     {
