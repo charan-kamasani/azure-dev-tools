@@ -24,26 +24,36 @@ copilot plugin marketplace add microsoft/azure-dev-tools
 copilot plugin install azure-cost-health-check@azure-dev-tools
 ```
 
-To pin the *full plugin* to version 0.4.5 after publication, use its
-source-qualified immutable tag:
+To pin the *full plugin* to version 0.4.5, use its source-qualified immutable
+tag:
 
 ```sh
 git clone --depth 1 --branch azure-cost-health-check-v0-4-5-bf89cc8 https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
 copilot plugin install ./azure-cost-health-check-plugin/canvases/azure-cost-health-check
 ```
 
-**Canvas-only fallback:** If the `azure-cost-health-check-latest` tag is
-updated to 0.4.5, use **Customize > Canvases > Install from gist/URL** with
-this nested extension folder:
+**Canvas-only fallback:** Use **Customize > Canvases > Install from gist/URL**
+with the nested extension folder at the moving latest tag:
 
 ```text
 https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-latest/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check
 ```
 
-Before that update, `-latest` remains on 0.4.3. The `-latest` tag can move;
-replace it with `azure-cost-health-check-v0-4-5-bf89cc8` to pin 0.4.5
-after publication. The canvas-only fallback omits the launcher skill. Do not
-install it alongside the full plugin, which would register duplicate providers.
+The current `azure-cost-health-check-latest` tag identifies 0.4.5. To pin the
+canvas-only payload, use:
+
+```text
+https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-v0-4-5-bf89cc8/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check
+```
+
+The corresponding
+[latest README](https://github.com/microsoft/azure-dev-tools/blob/azure-cost-health-check-latest/canvases/azure-cost-health-check/README.md)
+and
+[immutable 0.4.5 README](https://github.com/microsoft/azure-dev-tools/blob/azure-cost-health-check-v0-4-5-bf89cc8/canvases/azure-cost-health-check/README.md)
+describe the same released package, while the latest tag can move later. The
+canvas-only fallback omits the launcher skill. Do not install it alongside the
+full plugin, which would register duplicate providers. Native App marketplace
+installation has not been verified.
 
 ## First read-only check
 
