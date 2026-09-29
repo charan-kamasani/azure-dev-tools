@@ -18,14 +18,15 @@ copilot plugin install azure-cost-health-check@azure-dev-tools
 ```
 
 Reopen Copilot and start a new chat. You need Azure CLI 2.61+ signed in with
-read access to the subscriptions and billing data you want to see.
-After this version's release tags are published, the
-[canvas-only install folder](https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-latest/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check)
-installs without the launcher skill. The
-[README at the latest tag](https://github.com/microsoft/azure-dev-tools/blob/azure-cost-health-check-latest/canvases/azure-cost-health-check/README.md)
-follows that moving tag; use the published
-`azure-cost-health-check-v0-4-5-bf89cc8` immutable tag to pin version 0.4.5.
-Until the tags move, `-latest` still installs 0.4.3. See
+read access to the subscriptions and billing data you want to see. The
+[canvas-only install folder at the latest tag](https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-latest/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check)
+installs without the launcher skill, and its
+[README](https://github.com/microsoft/azure-dev-tools/blob/azure-cost-health-check-latest/canvases/azure-cost-health-check/README.md)
+follows that moving tag. Version 0.4.5 is pinned by the
+[immutable canvas-only install folder](https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-v0-4-5-bf89cc8/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check)
+and
+[immutable README](https://github.com/microsoft/azure-dev-tools/blob/azure-cost-health-check-v0-4-5-bf89cc8/canvases/azure-cost-health-check/README.md).
+Both tags currently identify the released 0.4.5 package. See
 [installation notes](docs/implementation.md#install) for the full-plugin
 version-pinned command and canvas-only safety guidance.
 

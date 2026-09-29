@@ -75,7 +75,7 @@ also precedes this exact merged source revision; it changes Hosted Skills, not
 Cost Health.
 The 36-file `azure-cost-health-check` source export passed `verify:canvas`;
 all source-export protected files are byte-identical to the production
-candidate. Its 33-file protected-only
+release. Its 33-file protected-only
 [SHA256SUMS](../canvases/azure-cost-health-check/SHA256SUMS) has SHA-256
 `e8267cfd0ce6656d265a61cf3a2e5b77eaa07289d8d1d6f926661e89c187a298`;
 source `checksums.json` has SHA-256
@@ -87,10 +87,15 @@ instructions, first-run steps, and the subscription-picker loading behavior.
 The updated implementation notes include the source-reviewed sign-in and
 picker guidance and the production version-pinned install.
 The source Cost syntax and 99 source unit/integration tests passed; native
-marketplace/App installation was not verified. The 0.4.5 tag and `-latest`
-update must wait for the paired Hosted Skills and Resources Query immutable
-tags and all normal review and release gates. Until then,
-`azure-cost-health-check-latest` remains on 0.4.3.
+marketplace/App installation was not verified. Release PR
+[#21](https://github.com/microsoft/azure-dev-tools/pull/21) was independently
+approved and squash-merged as
+`40f89b5b3f0f01e9262cfec3ad361cf4ebb22905`, descending from the paired-product
+release `bf0bd07520d004845b727bb40932c24a6e69bb8d`. The immutable
+`azure-cost-health-check-v0-4-5-bf89cc8` tag and
+`azure-cost-health-check-latest` both point to that Cost release commit.
+An isolated direct CLI install from the immutable tag was byte-identical to
+the reviewed package; this does not establish native App installation.
 
 ## Build canvas apps
 
@@ -109,8 +114,8 @@ can build or that native activation was verified.
 
 ## Production release gate
 
-The current Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 candidates
-were built from [reviewed source main
+Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 were built from
+[reviewed source main
 `bf89cc8f67bf15d7fb538336c5482818b4bb5b01`](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/bf89cc8f67bf15d7fb538336c5482818b4bb5b01)
 with `npm run package:plugin -- --repository=microsoft/azure-dev-tools <product>`.
 Their generated customer READMEs and all other emitted package files are
@@ -125,8 +130,10 @@ and `e9a448a794d025d2dc48e3234c957293287af7adfd49a7f1ffe82b4de8e1e881`.
 The source-qualified `azure-functions-hosted-skills-v0-5-5-bf89cc8` and
 `azure-resources-query-v0-1-5-bf89cc8` immutable tags, and their respective
 `-latest` tags, identify the approved production squash merge
-`bf0bd07520d004845b727bb40932c24a6e69bb8d`. Cost Health 0.4.5
-remains a separate candidate until its own reviewed merge and tags.
+`bf0bd07520d004845b727bb40932c24a6e69bb8d`. The separately reviewed Cost
+Health 0.4.5 release descends from that paired-product release and is identified
+by its own immutable and `-latest` tags at
+`40f89b5b3f0f01e9262cfec3ad361cf4ebb22905`.
 
 For historical context, the earlier Hosted Skills 0.5.3 and Azure Resources
 Query 0.1.3 candidates were built
