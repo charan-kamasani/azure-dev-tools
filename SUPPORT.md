@@ -2,16 +2,18 @@
 
 ## How to file issues and get help
 
-This project uses GitHub Issues to track bugs and feature requests. Please search the
-[existing issues](https://github.com/Azure/ai-gateway/issues) before filing
-new issues to avoid duplicates. For new issues, file your bug or feature request as a new Issue.
+This repository uses [GitHub Issues](https://github.com/microsoft/azure-dev-tools/issues)
+to track bugs and feature requests for its Azure Developer Tools plugins. Search
+existing issues before filing a new one to avoid duplicates.
 
-For help and questions about using this project, please use:
-
-- **[GitHub Discussions](https://github.com/Azure/ai-gateway/discussions)** — Ask questions, share ideas, and discuss the project
-- **[GitHub Issues](https://github.com/Azure/ai-gateway/issues)** — Report bugs and request features
-- **[Documentation](https://learn.microsoft.com/azure/api-management/ai-gateway-overview)** — Read AI Gateway tier SKU in Azure API Management service documentation
+For installation and usage help, start with the [project README](README.md),
+the [plugin marketplace guide](docs/plugin-marketplace.md), and the product
+guides linked from the README. If your question remains, open a GitHub Issue
+with relevant details.
 
 ## Microsoft Support Policy
 
-Support for this project is limited to the resources listed above. Microsoft Azure Support assistance is best effort, provided for problems that are caused by environmental factors, such as (but not limited to): development environment or network configuration.
+GitHub Issues are for feedback about this repository, not Azure service support.
+For help with Azure services or your subscription, use your existing Azure
+support channels. This repository does not establish an Azure Support
+entitlement or response-time commitment.
