@@ -34,10 +34,9 @@ copilot skill list
 
 Use this repository's [production package catalog](../README.md) or a
 published source-qualified production tag when following install instructions.
-Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 are **review candidates**;
-their planned immutable tags and the `-latest` extension URLs in the package
-READMEs are not installation targets for these versions until the production
-PR merges and both tags are published. The previous 0.5.2/0.1.2 tags remain
+Hosted Skills 0.5.5 and Azure Resources Query 0.1.5 have immutable tags and
+matching `-latest` extension URLs at production commit
+`bf0bd07520d004845b727bb40932c24a6e69bb8d`. The previous 0.5.2/0.1.2 tags remain
 available; the intervening 0.5.3/0.1.3 candidates were never tagged. The older immutable
 0.5.1/0.1.1 canvas package READMEs retain public
 source-distribution links, **not** this repository's
@@ -124,9 +123,10 @@ Their protected `checksums.json` digests are respectively
 `2dc198ffa482973c772723e161db8bc5d76e1988f11d1c9480495ad90d7cad4f`
 and `e9a448a794d025d2dc48e3234c957293287af7adfd49a7f1ffe82b4de8e1e881`.
 The source-qualified `azure-functions-hosted-skills-v0-5-5-bf89cc8` and
-`azure-resources-query-v0-1-5-bf89cc8` tags are planned, not published.
-Strict verification requires real tags after approval
-and the production squash merge.
+`azure-resources-query-v0-1-5-bf89cc8` immutable tags, and their respective
+`-latest` tags, identify the approved production squash merge
+`bf0bd07520d004845b727bb40932c24a6e69bb8d`. Cost Health 0.4.5
+remains a separate candidate until its own reviewed merge and tags.
 
 For historical context, the earlier Hosted Skills 0.5.3 and Azure Resources
 Query 0.1.3 candidates were built

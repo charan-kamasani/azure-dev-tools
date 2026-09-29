@@ -104,14 +104,14 @@ test("candidate rejects corrupted protected payloads and checksum receipts", () 
     writeFileSync(runtime, Buffer.concat([originalRuntime, Buffer.from("\n// Corrupted payload\n")]));
     git("add", "--", packagePath);
     git("commit", "--quiet", "-m", "Corrupt candidate payload");
-    assert.throws(verify, /protected release checksum differs|plugin file differs from checksum receipt/);
+    assert.throws(verify, /immutable package files differ from the reviewed release tag|protected release checksum differs|plugin file differs from checksum receipt/);
 
     writeFileSync(runtime, originalRuntime);
     const receipt = join(clone, packagePath, "SHA256SUMS");
     writeFileSync(receipt, readFileSync(receipt, "utf8").split("\n").slice(1).join("\n"));
     git("add", "--", packagePath);
     git("commit", "--quiet", "-m", "Corrupt candidate receipt");
-    assert.throws(verify, /checksum receipt must cover every protected plugin file exactly once/);
+    assert.throws(verify, /current checksum receipt differs from immutable release tag|checksum receipt must cover every protected plugin file exactly once/);
   } finally {
     rmSync(checkout, { recursive: true, force: true });
   }
