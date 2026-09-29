@@ -21,7 +21,7 @@
     },
     {
       "name": "azure-cost-health-check",
-      "version": "0.4.4",
+      "version": "0.4.5",
       "source": "canvases/azure-cost-health-check"
     },
     {

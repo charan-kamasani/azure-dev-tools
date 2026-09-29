@@ -24,26 +24,26 @@ copilot plugin marketplace add microsoft/azure-dev-tools
 copilot plugin install azure-cost-health-check@azure-dev-tools
 ```
 
-To pin the *full plugin* to an exact version, obtain its published immutable
-`azure-cost-health-check-v0-4-3-<source-qualifier>` tag from the marketplace
-administrator. Replace the placeholder with that exact tag:
+To pin the *full plugin* to version 0.4.5 after publication, use its
+source-qualified immutable tag:
 
 ```sh
-git clone --depth 1 --branch "<exact-published-tag>" https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
+git clone --depth 1 --branch azure-cost-health-check-v0-4-5-825f1b7 https://github.com/microsoft/azure-dev-tools.git azure-cost-health-check-plugin
 copilot plugin install ./azure-cost-health-check-plugin/canvases/azure-cost-health-check
 ```
 
 **Canvas-only fallback:** If the `azure-cost-health-check-latest` tag is
-available, use **Customize > Canvases > Install from gist/URL** with this
-nested extension folder:
+updated to 0.4.5, use **Customize > Canvases > Install from gist/URL** with
+this nested extension folder:
 
 ```text
 https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-latest/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check
 ```
 
-The `-latest` tag can move; use an immutable version tag instead for an exact
-version. The canvas-only fallback omits the launcher skill. Do not install it
-alongside the full plugin, which would register duplicate providers.
+Before that update, `-latest` remains on 0.4.3. The `-latest` tag can move;
+replace it with `azure-cost-health-check-v0-4-5-825f1b7` to pin 0.4.5
+after publication. The canvas-only fallback omits the launcher skill. Do not
+install it alongside the full plugin, which would register duplicate providers.
 
 ## First read-only check
 
@@ -142,6 +142,13 @@ Version 0.4.3 uses public `@microsoft/canvas-toolkit` exports:
 - Shared styles and the command-activity component provide controls, accessible
   selection, and bounded operation progress. The specialized dashboard/chart
   styling remains app-owned.
+
+Version 0.4.5 includes the shared Azure CLI transport and sign-in error
+classification. The toolkit uses the host-aware CLI environment when acquiring
+tokens, including on Windows. A CLI timeout or claims challenge is shown once
+as a sign-in failure, not as missing Reader access on each cost capability.
+Complete sign-in in a terminal and refresh before investigating role assignments.
+No ARM request runs without a token.
 
 The service adapter retains Cost Management POST pagination, billing-unit and
 coverage semantics, rate gates, retry policy and identity-scoped TTL caching.

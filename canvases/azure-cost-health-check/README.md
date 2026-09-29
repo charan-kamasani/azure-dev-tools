@@ -7,27 +7,40 @@ AI billing together in a read-only Copilot dashboard.
 
 ## Install
 
-If your GitHub Copilot host shows the **awesome-copilot** marketplace, open
-**Customize → Plugins** and install **Azure Cost Health Check**. The full plugin
-includes its canvas and launcher skill. If the marketplace is missing, add it
-first:
+In GitHub Copilot, open **Customize → Plugins**, add the
+`microsoft/azure-dev-tools` marketplace (ID `azure-dev-tools`) using the
+marketplace gear, and install **Azure Cost Health Check** when available. The
+full plugin includes its canvas and launcher skill. The CLI equivalent is:
 
 ```sh
-copilot plugin marketplace add github/awesome-copilot
-copilot plugin install azure-cost-health-check@awesome-copilot
+copilot plugin marketplace add microsoft/azure-dev-tools
+copilot plugin install azure-cost-health-check@azure-dev-tools
 ```
 
 Reopen Copilot and start a new chat. You need Azure CLI 2.61+ signed in with
 read access to the subscriptions and billing data you want to see.
-For a published immutable version or canvas-only alternative, see
-[installation notes](docs/implementation.md#install).
+After this version's release tags are published, the
+[canvas-only install folder](https://github.com/microsoft/azure-dev-tools/tree/azure-cost-health-check-latest/canvases/azure-cost-health-check/com.github.copilot/extensions/azure-cost-health-check)
+installs without the launcher skill. The
+[README at the latest tag](https://github.com/microsoft/azure-dev-tools/blob/azure-cost-health-check-latest/canvases/azure-cost-health-check/README.md)
+follows that moving tag; use the published
+`azure-cost-health-check-v0-4-5-825f1b7` immutable tag to pin version 0.4.5.
+Until the tags move, `-latest` still installs 0.4.3. See
+[installation notes](docs/implementation.md#install) for the full-plugin
+version-pinned command and canvas-only safety guidance.
 
 ## Try it
 
 Ask **Open Azure Cost Health Check in real mode for my subscription**.
-Confirm the subscription in the canvas, then review spend and cost drivers,
-forecasts, native alerts, and AI billing. A loading or permission-limited
-section is not zero cost; remediation suggestions do not authorize writes.
+
+1. Use **Choose subscriptions** to select the intended scope.
+2. Select **Refresh** and review **Cost drivers**, forecasts, native alerts,
+   and AI billing.
+3. If sign-in fails, complete `az login` in a terminal and use **Refresh
+   subscriptions** before trying **Refresh** again.
+
+A loading or permission-limited section is not zero cost; remediation
+suggestions do not authorize writes.
 
 ## What you can do
 

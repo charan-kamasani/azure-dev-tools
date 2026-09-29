@@ -71,7 +71,7 @@ for (const name of ["azure-functions-hosted-skills", "azure-resources-query"]) {
   });
 }
 
-test("Cost Health 0.4.4 pins every protected Agent Plugins file without pinning mutable docs", () => {
+test("Cost Health 0.4.5 pins every protected Agent Plugins file without pinning mutable docs", () => {
   const packagePath = "canvases/azure-cost-health-check/";
   const read = (file) => readFileSync(new URL(`${packagePath}${file}`, root));
   const release = JSON.parse(read("release.json"));
@@ -80,8 +80,8 @@ test("Cost Health 0.4.4 pins every protected Agent Plugins file without pinning 
   const receipt = read("SHA256SUMS");
   assert.equal(release.schemaVersion, 2);
   assert.equal(release.mutableDocumentation, true);
-  assert.equal(release.version, "0.4.4");
-  assert.equal(manifest.version, "0.4.4");
+  assert.equal(release.version, "0.4.5");
+  assert.equal(manifest.version, "0.4.5");
   assert.equal(manifest.extensions["com.github.copilot"].logo, "assets/preview.png");
   const icon = `${release.plugin.extension.directory}/assets/plugin-icon.png`;
   assert.deepEqual(release.assets.find(({ route }) => route === "assets/plugin-icon.png"), {

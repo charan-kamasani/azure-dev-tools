@@ -57,7 +57,7 @@ test("requires release tags for full verification, then checks every catalog plu
   assert.ok(results[0].startsWith(`azure-functions-hosted-skills@${versionOf("azure-functions-hosted-skills")} azure-functions-hosted-skills-v`));
   assert.ok(results[1].startsWith(`azure-resources-query@${versionOf("azure-resources-query")} azure-resources-query-v`));
   assert.match(results[2], /canvas-authoring@0\.1\.1 canvas-authoring-v0-1-1-/);
-  assert.match(results[3], /azure-cost-health-check@0\.4\.4 azure-cost-health-check-v0-4-4-/);
+  assert.match(results[3], /azure-cost-health-check@0\.4\.5 azure-cost-health-check-v0-4-5-/);
   assert.match(results[4], /azure-sre-agent@0\.2\.7 azure-sre-agent-v0-2-7-/);
 });
 
@@ -146,9 +146,9 @@ test("a subsequent Cost candidate version validates without a verifier edit", ()
     ]) {
       const value = JSON.parse(read(path));
       if (path === ".github/plugin/marketplace.json") {
-        value.plugins.find(({ name }) => name === "azure-cost-health-check").version = "0.4.5";
+        value.plugins.find(({ name }) => name === "azure-cost-health-check").version = "0.4.6";
       } else {
-        value.version = "0.4.5";
+        value.version = "0.4.6";
       }
       writeJson(path, value);
     }
