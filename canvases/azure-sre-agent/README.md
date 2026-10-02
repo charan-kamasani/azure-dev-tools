@@ -3,9 +3,9 @@
 Diagnose a failing Azure app with an existing SRE Agent, inspect the resulting
 investigation, and continue from its active thread.
 
-![Azure SRE Agent Copilot canvas showing investigation threads and a selected example analysis.](docs/preview.png)
+![Azure SRE Agent canvas showing a Contoso Trading incident investigation on demo1-dt-snow.](docs/preview.png)
 
-*Illustrative fixture data in the actual GitHub Copilot canvas layout.*
+*An existing Contoso Trading incident investigation on the demo1-dt-snow SRE Agent in GitHub Copilot.*
 
 ## Install
 
@@ -26,13 +26,14 @@ published version pin or canvas-only fallback, see
 
 ## Try it
 
-Ask **Open SRE Agent Canvas**. Under **Azure Configuration**, choose the
+Ask **Open SRE Agent Canvas**. Under **Azure Configuration → By subscription**, choose the
 subscription containing your SRE Agent, select the agent, then select **Apps**,
 pick a failing app, and choose **Diagnose with SRE Agent**. If someone shared
 an external SRE Agent instead, paste its `sre.azure.com` share link or Azure
-resource ID into **Open an agent by URL or resource ID** and choose
-**Connect to agent**. Once connected, choose **Save connected agent** to add it
-to **Favorites** for quick reconnection across chats. Inspect evidence in
+resource ID in the **External URL or Resource ID** tab and choose
+**Connect to agent**. Use the star beside the current connection or a native
+agent row in the picker to save/remove **Favorites** without connecting.
+Choose a Favorite row in the agent-name switcher to reconnect across chats. Inspect evidence in
 **Threads** and **Active thread**; focus a thread to continue in chat.
 Mutating operations require a separate explicit action or host confirmation.
 
@@ -41,6 +42,9 @@ Mutating operations require a separate explicit action or host confirmation.
 - Find an existing SRE Agent and the apps it monitors.
 - Diagnose a failing app and review investigation threads with their evidence.
 - Focus an active thread to continue the investigation in chat.
+- Read scheduled tasks and HTTP triggers in **Automation** for native or external
+  connections. Search, filter, inspect details, or refresh both collections;
+  failed reads stay visible and are not reported as empty lists.
 
 ## Prompts to try
 
