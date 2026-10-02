@@ -3,9 +3,9 @@
 Diagnose a failing Azure app with an existing SRE Agent, inspect the resulting
 investigation, and continue from its active thread.
 
-![Azure SRE Agent Copilot canvas showing investigation threads and a selected example analysis.](docs/preview.png)
+![Azure SRE Agent canvas showing a Contoso Trading incident investigation on demo1-dt-snow.](docs/preview.png)
 
-*Illustrative fixture data in the actual GitHub Copilot canvas layout.*
+*An existing Contoso Trading incident investigation on the demo1-dt-snow SRE Agent in GitHub Copilot.*
 
 ## Install
 
