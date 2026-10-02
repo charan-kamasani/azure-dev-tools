@@ -59,6 +59,7 @@ test("requires release tags for full verification, then checks every catalog plu
   assert.match(results[2], /canvas-authoring@0\.1\.1 canvas-authoring-v0-1-1-/);
   assert.match(results[3], /azure-cost-health-check@0\.4\.5 azure-cost-health-check-v0-4-5-/);
   assert.match(results[4], /azure-sre-agent@0\.2\.7 azure-sre-agent-v0-2-7-/);
+  assert.ok(results[5].startsWith(`azure-storage-canvas@${versionOf("azure-storage-canvas")} azure-storage-canvas-v`));
 });
 
 test("candidate validates every reviewed package and omits only missing immutable tags", () => {

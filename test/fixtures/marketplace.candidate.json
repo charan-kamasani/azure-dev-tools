@@ -28,6 +28,11 @@
       "name": "azure-sre-agent",
       "version": "0.2.7",
       "source": "canvases/azure-sre-agent"
+    },
+    {
+      "name": "azure-storage-canvas",
+      "version": "0.1.1",
+      "source": "canvases/azure-storage-canvas"
     }
   ]
 }
