@@ -1,0 +1,11 @@
+{
+  "name": "azure-storage-canvas",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "main": "com.github.copilot/extensions/azure-storage-canvas/extension.mjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "description": "Azure Storage canvas — browse blobs and containers, bulk transfer with live progress, filter with aggregate statistics, mint and open SAS links, preview blobs, and plan account to account copies, all agent-drivable on one live surface."
+}

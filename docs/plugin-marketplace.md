@@ -6,14 +6,16 @@ Once this repository's marketplace is approved and published, in GitHub
 Copilot App open **Customize → Plugins**, use the gear beside the marketplace
 dropdown to add `microsoft/azure-dev-tools`, then select the
 `azure-dev-tools` marketplace. Install `azure-functions-hosted-skills`,
-`azure-resources-query`, `canvas-authoring`, or `azure-cost-health-check`
+`azure-resources-query`, `canvas-authoring`, `azure-cost-health-check`, or
+`azure-storage-canvas`
 separately **after each product's release gates pass**. Access to this
 repository is required.
 Restart Copilot and verify the installed skills; open a canvas for the Hosted,
-Resources Query, or Cost Health products only. Installation does not
+Resources Query, Cost Health, or Storage products only. Installation does not
 automatically display a panel: ask Copilot **"Open Azure Resources Query"**,
 **"Open Azure Functions Hosted Skills"**, or **"Open Azure Cost Health Check
-in real mode for my subscription"**. The builder entry is skill-only: use
+in real mode for my subscription"**, or **"Open Azure Storage canvas."**.
+The builder entry is skill-only: use
 the host's native `create-canvas` workflow instead of expecting a builder canvas.
 [GitHub's App guide](https://docs.github.com/en/copilot/how-tos/github-copilot-app/customize-github-copilot-app#adding-plugins)
 documents the registration workflow, but **this marketplace's App install has
@@ -28,6 +30,7 @@ copilot plugin install azure-functions-hosted-skills@azure-dev-tools
 copilot plugin install azure-resources-query@azure-dev-tools
 copilot plugin install canvas-authoring@azure-dev-tools
 copilot plugin install azure-cost-health-check@azure-dev-tools
+copilot plugin install azure-storage-canvas@azure-dev-tools
 copilot plugin list
 copilot skill list
 ```
@@ -42,6 +45,17 @@ available; the intervening 0.5.3/0.1.3 candidates were never tagged. The older i
 source-distribution links, **not** this repository's
 production installation target. Native App installation from this
 marketplace has not yet been verified.
+
+Azure Storage's first production candidate uses canonical plugin name
+`azure-storage-canvas`, package root `canvases/azure-storage-canvas`, and
+the `com.github.copilot/extensions/azure-storage-canvas` nested extension.
+The generated customer README is preserved byte-for-byte from its source
+package, alongside the launcher skill, marketplace preview, SDK modules,
+protected third-party notices, and schema-v2 checksum metadata. Its
+protected-only `SHA256SUMS` excludes the inert customer README. Production
+installation and `azure-storage-canvas-latest` must wait for the independently
+reviewed squash merge and verified immutable release tag; no native App
+acceptance is claimed.
 
 Cost Health 0.4.3 was exported from
 the exact [merged source main revision](https://github.com/coreai-microsoft/canvases-cloud-foundation/commit/b3551729b5d1e6377283efd1a012fa523e0c8aac)

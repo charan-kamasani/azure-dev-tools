@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "azure-storage-canvas",
+  "version": "0.1.1",
+  "description": "Azure Storage canvas — browse blobs and containers, bulk transfer with live progress, filter with aggregate statistics, mint and open SAS links, preview blobs, and plan account to account copies, all agent-drivable on one live surface.",
+  "extensions": {
+    "com.github.copilot": {
+      "logo": "assets/preview.png"
+    }
+  },
+  "skills": [
+    "./skills/azure-storage-canvas/"
+  ]
+}
