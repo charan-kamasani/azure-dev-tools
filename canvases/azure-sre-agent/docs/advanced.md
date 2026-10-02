@@ -73,6 +73,12 @@ access to Azure or the agent endpoint. Check your VPN and network connection,
 then retry. This error alone does not establish that your Azure login or RBAC
 needs changing.
 
+The subscription picker reads the CLI's cached subscription identities separately
+from external-agent connectivity. It accepts `cloudName` from current Azure CLI
+versions and the older `environmentName`/`cloud` fields, while still requiring a
+valid subscription, tenant and account identity. Connecting an external agent
+does not select an Azure subscription or replace that profile.
+
 ## Use and safety
 
 You can also ask:
@@ -90,9 +96,21 @@ inspect its evidence and status in **Active thread**. Choose
 when finished.
 
 For an external or shared SRE Agent, paste its `sre.azure.com` share link or
-Azure resource ID into **Open an agent by URL or resource ID** and choose
-**Connect to agent**. Use **Save connected agent** to add it to **Favorites**;
-select the saved agent later to reconnect without repeating the lookup.
+Azure resource ID in the **External URL or Resource ID** tab and choose
+**Connect to agent**. Use the star beside the current connection or a native
+agent row in the picker to save/remove **Favorites** without connecting;
+select the saved agent row later to reconnect without repeating the lookup.
+**By subscription** contains native discovery only. Switching tabs preserves
+the current connection, investigation, and entered reference.
+
+**Automation** uses the connected agent's authenticated, read-only
+`GET /api/v1/scheduledtasks` and `GET /api/v1/httptriggers` collections.
+External connections read both at connection time; **Refresh Automation** reads
+both on native or external connections. The two collections report failures
+independently: an unread, denied, or unreachable collection is unavailable,
+not empty, and does not disconnect a working thread. Details show supplied
+schedule, last/next execution time, and execution count; missing values remain
+**Not provided**. Trigger URLs, invocation controls, and run history are not exposed.
 
 The canvas uses your Azure CLI identity. Its read and write actions are
 registered; mutating operations require an explicit action or host
