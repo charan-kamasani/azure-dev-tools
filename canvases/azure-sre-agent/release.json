@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "format": "plugin",
   "name": "azure-sre-agent",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "mutableDocumentation": true,
   "publicationRepository": "microsoft/azure-dev-tools",
   "plugin": {
@@ -58,8 +58,8 @@
   },
   "build": {
     "esbuild": "0.25.12",
-    "lockSha256": "440d5470b73b1b2b3709163021906a5c9d5fa4444d690911455023d88f39e830",
-    "inputSha256": "50917577ef12e66508b492c36f22414e501188390d647b6505df5e02799b7000"
+    "lockSha256": "677479f7de7870550b61f1cdeea1b71f78c60f099dad8d0341a8b207043e9875",
+    "inputSha256": "4c3843c9116a0cbd39090dd506ebbc729e58956d33f0d6567ce99b4227256436"
   },
   "dependencies": [
     {

@@ -95,6 +95,15 @@ inspect its evidence and status in **Active thread**. Choose
 **Focus this thread** before operational follow-ups in chat, then **Unfocus**
 when finished.
 
+Active-thread replies, scheduled-task descriptions and expanded instructions,
+and tool/query result prose share the host's body typography. Callout borders
+and surfaces distinguish tasks and tools; role labels stay muted and only card
+titles use semibold. Author-supplied Markdown emphasis, headings and tables are
+preserved. Code and queries use the host's monospace font. The canvas consumes
+the documented `--font-sans`, `--font-mono`, `--text-body-medium`,
+`--leading-body-medium` and `--font-weight-semibold` tokens with portable
+fallbacks; it does not require host-internal styles or downloaded fonts.
+
 For an external or shared SRE Agent, paste its `sre.azure.com` share link or
 Azure resource ID in the **External URL or Resource ID** tab and choose
 **Connect to agent**. Use the star beside the current connection or a native

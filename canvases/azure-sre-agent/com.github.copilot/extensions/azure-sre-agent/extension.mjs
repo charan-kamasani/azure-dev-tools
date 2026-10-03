@@ -1102,6 +1102,191 @@ async function performAutomationCommand(entry, selection, { writesAllowed = fals
   return { command: selection.command, taskId: item.id };
 }
 
+// packages/sre-agent-core/src/domain/execution-gates.mjs
+var EXECUTION_KINDS = Object.freeze([
+  "azCliExecution",
+  "kubectlExecution",
+  "psqlExecution"
+]);
+function normalizedStatus(value) {
+  return String(value || "").toLowerCase();
+}
+function threadIdOf(thread) {
+  return thread?.id || thread?.threadId || "";
+}
+var EXECUTION_ACTIVITY_KINDS = [
+  ...EXECUTION_KINDS,
+  "genevaActionExecution",
+  "terminalResult",
+  "mcpToolExecution",
+  "approval"
+];
+var THREAD_ACTIVITY_LABELS = {
+  running: "Running",
+  "waiting-approval": "Waiting for approval",
+  "waiting-permission": "Waiting for permission",
+  "waiting-input": "Waiting for user input",
+  completed: "Completed",
+  failed: "Failed",
+  cancelled: "Cancelled",
+  unknown: "Status unknown",
+  idle: ""
+};
+function activity(state) {
+  return { state, label: THREAD_ACTIVITY_LABELS[state] };
+}
+function executionActivity(execution, kind) {
+  const status = normalizedStatus(execution?.status).replace(/[\s_-]+/g, "");
+  if (status === "pendingauthorization") return activity("waiting-permission");
+  if (kind === "approval" && status === "pending") return activity("waiting-approval");
+  if (["running", "pending", "queued", "inprogress"].includes(status)) {
+    return kind === "approval" ? activity("unknown") : activity("running");
+  }
+  if (["completed", "succeeded"].includes(status)) return activity("completed");
+  if (status === "failed") return activity("failed");
+  if (["cancelled", "canceled"].includes(status)) return activity("cancelled");
+  return activity("unknown");
+}
+function currentExecutionObservations(thread, kinds = EXECUTION_ACTIVITY_KINDS) {
+  const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+  const seen = /* @__PURE__ */ new Set();
+  const found = [];
+  for (let index = messages.length - 1; index >= 0; index--) {
+    for (const kind of kinds) {
+      const execution = messages[index]?.[kind];
+      if (!execution || typeof execution !== "object" || Array.isArray(execution)) continue;
+      const key = `${kind}:${execution.id || `message-${index}`}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      found.push({ kind, execution, messageIndex: index });
+    }
+  }
+  return found;
+}
+function deriveThreadActivity(thread) {
+  if (!thread || thread.draft) return activity("idle");
+  const rawStatus = typeof thread.status === "string" ? thread.status : thread.status?.investigationStatus?.status || thread.status?.investigationStatus;
+  const status = typeof rawStatus === "string" ? normalizedStatus(rawStatus).replace(/[\s_-]+/g, "") : "";
+  const threadState = executionActivity({ status });
+  if (["completed", "failed", "cancelled"].includes(threadState.state)) return threadState;
+  const observations = currentExecutionObservations(thread);
+  if (!observations.length && Object.hasOwn(THREAD_ACTIVITY_LABELS, thread.activity?.state)) {
+    return activity(thread.activity.state);
+  }
+  const states = observations.map(({ execution, kind }) => executionActivity(execution, kind));
+  const approval = states.find((item) => item.state === "waiting-approval");
+  if (approval) return approval;
+  const permission = states.find((item) => item.state === "waiting-permission");
+  if (permission) return permission;
+  if (["pendinguserinput", "waitingforuser"].includes(status)) return activity("waiting-input");
+  if (states.some((item) => item.state === "running")) return activity("running");
+  if (states.some((item) => item.state === "unknown")) return activity("unknown");
+  if (status) return threadState;
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  const last = messages.at(-1) || thread.lastMessage || thread.startMessage;
+  if (normalizedStatus(last?.author?.role || last?.role) === "user" || last?.isComplete === false) {
+    return activity("running");
+  }
+  if (observations[0]?.messageIndex === messages.length - 1) return states[0];
+  return activity("idle");
+}
+var THREAD_ACTIVITY_BROWSER_SOURCE = [
+  `var EXECUTION_KINDS = ${JSON.stringify(EXECUTION_KINDS)};`,
+  `var EXECUTION_ACTIVITY_KINDS = ${JSON.stringify(EXECUTION_ACTIVITY_KINDS)};`,
+  `var THREAD_ACTIVITY_LABELS = ${JSON.stringify(THREAD_ACTIVITY_LABELS)};`,
+  normalizedStatus,
+  activity,
+  executionActivity,
+  currentExecutionObservations,
+  deriveThreadActivity
+].map((value) => typeof value === "function" ? value.toString() : value).join("\n");
+function findExecutionInThread(thread, { executionType, executionId, status } = {}) {
+  const kinds = executionType ? [executionType] : EXECUTION_KINDS;
+  const wantedStatus = status ? normalizedStatus(status) : "";
+  for (const found of currentExecutionObservations(thread, kinds)) {
+    if (executionId && found.execution.id !== executionId) continue;
+    if (wantedStatus && normalizedStatus(found.execution.status) !== wantedStatus) continue;
+    return found;
+  }
+  return null;
+}
+function findCurrentExecutionGate(thread, attention = {}, observedAt = (/* @__PURE__ */ new Date()).toISOString()) {
+  const threadId2 = attention.threadId || threadIdOf(thread);
+  if (!threadId2) return null;
+  const found = findExecutionInThread(thread, {
+    executionType: attention.executionType,
+    executionId: attention.executionId,
+    status: "PendingAuthorization"
+  }) || (!attention.executionId ? findExecutionInThread(thread, {
+    executionType: attention.executionType,
+    status: "PendingAuthorization"
+  }) : null);
+  if (!found) return null;
+  const executionId = found.execution.id || "";
+  return {
+    key: `${threadId2}:${found.kind}:${executionId}`,
+    threadId: threadId2,
+    kind: found.kind,
+    executionId,
+    status: found.execution.status || "",
+    command: found.execution.command || "",
+    requiredScopes: Array.isArray(found.execution.requiredScopes) ? found.execution.requiredScopes : [],
+    ...found.execution.resourceId ? { resourceId: found.execution.resourceId } : {},
+    observedAt
+  };
+}
+function deriveExecutionGateSnapshot({
+  needsAttention = [],
+  threads = [],
+  previousObservedKeys = [],
+  observedAt = (/* @__PURE__ */ new Date()).toISOString(),
+  omittedThreadCount = 0,
+  totalThreadCount = needsAttention.length + omittedThreadCount,
+  detailErrors = []
+} = {}) {
+  const threadById = new Map(
+    threads.filter((thread) => threadIdOf(thread)).map((thread) => [threadIdOf(thread), thread])
+  );
+  const observedGateKeys = [];
+  const seenKeys = /* @__PURE__ */ new Set();
+  for (const key of previousObservedKeys) {
+    if (typeof key !== "string" || !key || seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    observedGateKeys.push(key);
+  }
+  let missingDetailCount = 0;
+  const rows = needsAttention.map((attention) => {
+    const thread = threadById.get(attention?.threadId);
+    const currentGate = thread ? findCurrentExecutionGate(thread, attention, observedAt) : null;
+    if (!thread || !currentGate) missingDetailCount++;
+    if (currentGate && !seenKeys.has(currentGate.key)) {
+      seenKeys.add(currentGate.key);
+      observedGateKeys.push(currentGate.key);
+    }
+    return {
+      threadId: attention?.threadId || "",
+      title: attention?.title || thread?.title || "",
+      pendingOn: attention?.pendingOn,
+      pendingSince: attention?.pendingSince,
+      currentGate,
+      observedGateCount: currentGate ? observedGateKeys.filter((key) => key.startsWith(`${currentGate.threadId}:`)).length : 0,
+      moreGatesUnknown: Boolean(currentGate)
+    };
+  });
+  return {
+    observedAt,
+    threads: rows,
+    threadCount: totalThreadCount,
+    currentGateCount: rows.filter((row) => row.currentGate).length,
+    observedGateCount: observedGateKeys.length,
+    observedGateKeys,
+    partial: missingDetailCount > 0 || omittedThreadCount > 0,
+    missingDetailCount,
+    omittedThreadCount,
+    detailErrors
+  };
+}
+
 // packages/sre-agent-core/src/domain/thread-projection.mjs
 var MESSAGE_LIMIT = 40;
 var THREAD_TEXT_BUDGET = 14e3;
@@ -1160,6 +1345,7 @@ function projectThread(thread) {
   if (!thread || typeof thread !== "object") return null;
   return compact({
     id: thread.id,
+    activity: deriveThreadActivity(thread),
     title: thread.title,
     type: thread.type,
     source: thread.source,
@@ -1349,111 +1535,6 @@ async function readExternalConnectors(agent, subscription, entry, fetchImpl) {
       return { ...connector, status: "Status unavailable", statusError: text(error.message) };
     }
   }));
-}
-
-// packages/sre-agent-core/src/domain/execution-gates.mjs
-var EXECUTION_KINDS = Object.freeze([
-  "azCliExecution",
-  "kubectlExecution",
-  "psqlExecution"
-]);
-function normalizedStatus(value) {
-  return String(value || "").toLowerCase();
-}
-function threadIdOf(thread) {
-  return thread?.id || thread?.threadId || "";
-}
-function findExecutionInThread(thread, { executionType, executionId, status } = {}) {
-  const messages = Array.isArray(thread?.messages) ? thread.messages : [];
-  const kinds = executionType ? [executionType] : EXECUTION_KINDS;
-  const wantedStatus = status ? normalizedStatus(status) : "";
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index];
-    for (const kind of kinds) {
-      const execution = message?.[kind];
-      if (!execution) continue;
-      if (executionId && execution.id !== executionId) continue;
-      if (wantedStatus && normalizedStatus(execution.status) !== wantedStatus) continue;
-      return { kind, execution, messageIndex: index };
-    }
-  }
-  return null;
-}
-function findCurrentExecutionGate(thread, attention = {}, observedAt = (/* @__PURE__ */ new Date()).toISOString()) {
-  const threadId2 = attention.threadId || threadIdOf(thread);
-  if (!threadId2) return null;
-  const found = findExecutionInThread(thread, {
-    executionType: attention.executionType,
-    executionId: attention.executionId,
-    status: "PendingAuthorization"
-  }) || (!attention.executionId ? findExecutionInThread(thread, {
-    executionType: attention.executionType,
-    status: "PendingAuthorization"
-  }) : null);
-  if (!found) return null;
-  const executionId = found.execution.id || "";
-  return {
-    key: `${threadId2}:${found.kind}:${executionId}`,
-    threadId: threadId2,
-    kind: found.kind,
-    executionId,
-    status: found.execution.status || "",
-    command: found.execution.command || "",
-    requiredScopes: Array.isArray(found.execution.requiredScopes) ? found.execution.requiredScopes : [],
-    ...found.execution.resourceId ? { resourceId: found.execution.resourceId } : {},
-    observedAt
-  };
-}
-function deriveExecutionGateSnapshot({
-  needsAttention = [],
-  threads = [],
-  previousObservedKeys = [],
-  observedAt = (/* @__PURE__ */ new Date()).toISOString(),
-  omittedThreadCount = 0,
-  totalThreadCount = needsAttention.length + omittedThreadCount,
-  detailErrors = []
-} = {}) {
-  const threadById = new Map(
-    threads.filter((thread) => threadIdOf(thread)).map((thread) => [threadIdOf(thread), thread])
-  );
-  const observedGateKeys = [];
-  const seenKeys = /* @__PURE__ */ new Set();
-  for (const key of previousObservedKeys) {
-    if (typeof key !== "string" || !key || seenKeys.has(key)) continue;
-    seenKeys.add(key);
-    observedGateKeys.push(key);
-  }
-  let missingDetailCount = 0;
-  const rows = needsAttention.map((attention) => {
-    const thread = threadById.get(attention?.threadId);
-    const currentGate = thread ? findCurrentExecutionGate(thread, attention, observedAt) : null;
-    if (!thread || !currentGate) missingDetailCount++;
-    if (currentGate && !seenKeys.has(currentGate.key)) {
-      seenKeys.add(currentGate.key);
-      observedGateKeys.push(currentGate.key);
-    }
-    return {
-      threadId: attention?.threadId || "",
-      title: attention?.title || thread?.title || "",
-      pendingOn: attention?.pendingOn,
-      pendingSince: attention?.pendingSince,
-      currentGate,
-      observedGateCount: currentGate ? observedGateKeys.filter((key) => key.startsWith(`${currentGate.threadId}:`)).length : 0,
-      moreGatesUnknown: Boolean(currentGate)
-    };
-  });
-  return {
-    observedAt,
-    threads: rows,
-    threadCount: totalThreadCount,
-    currentGateCount: rows.filter((row) => row.currentGate).length,
-    observedGateCount: observedGateKeys.length,
-    observedGateKeys,
-    partial: missingDetailCount > 0 || omittedThreadCount > 0,
-    missingDetailCount,
-    omittedThreadCount,
-    detailErrors
-  };
 }
 
 // packages/sre-agent-core/src/actions/execution-gates.mjs
@@ -2011,10 +2092,13 @@ function transcriptRenderKey(thread) {
     id: threadId(thread),
     messages: boundedTranscriptMessages(thread),
     startMessage: thread && thread.startMessage,
-    awaiting: thread && thread.awaitingResponse
+    awaiting: thread && thread.awaitingResponse,
+    activity: thread && thread.activity,
+    status: thread && thread.status
   });
 }
 var THREAD_CLIENT_HELPERS = [
+  THREAD_ACTIVITY_BROWSER_SOURCE,
   `var MAX_EMBEDDED_MESSAGES = ${MAX_EMBEDDED_MESSAGES};`,
   `var MAX_COMMAND_CHARS = ${MAX_COMMAND_CHARS};`,
   `var MAX_TOOL_OUTPUT_CHARS = ${MAX_TOOL_OUTPUT_CHARS};`,
@@ -3096,7 +3180,7 @@ async function getThread(agent, subscription, threadId2, entry, {
     getMessagesImpl(agent, subscription, threadId2, entry)
   ]);
   if (!thread?.id) throw new Error(`Thread "${threadId2}" was not found.`);
-  if ((agent.external || projectDetail) && !Array.isArray(messages)) {
+  if (!Array.isArray(messages)) {
     throw new Error(`The agent did not return valid messages for thread "${threadId2}".`);
   }
   const detail = { ...thread, messages };
@@ -4032,6 +4116,7 @@ function ensureEntry(instanceId) {
       connectorAccessInfo: {},
       threads: [],
       activeThread: null,
+      threadRead: null,
       automationRunThreadId: "",
       focusedThreadId: "",
       focusedThreadTitle: "",
@@ -4098,6 +4183,7 @@ function snapshot(entry) {
     connectorAccessInfo: entry.connectorAccessInfo || {},
     threads: entry.threads,
     activeThread: entry.activeThread,
+    threadRead: entry.threadRead,
     focusedThreadId: entry.focusedThreadId,
     focusedThreadTitle: entry.focusedThreadTitle,
     incidents: (entry.incidents || []).map((incident) => ({
@@ -4148,6 +4234,52 @@ function clearThreadContext(entry) {
   entry.automationRunThreadId = "";
   entry.focusedThreadId = "";
   entry.focusedThreadTitle = "";
+  if ("threadRead" in entry) entry.threadRead = null;
+  if ("requestedThreadId" in entry) entry.requestedThreadId = "";
+}
+async function readSelectedThread(entry, { threadId: threadId2, poll = false, focus = false }, {
+  readThread = getThread
+} = {}) {
+  if (!entry.agent) throw new Error("Select an SRE Agent first.");
+  if (!threadId2) throw new Error("Select a thread to read.");
+  if (poll && (threadId(entry.activeThread) !== threadId2 || entry.threadRead?.loading)) return null;
+  const agent = entry.agent, subscription = entry.subscription, selection = entry.selectionGeneration;
+  const activeAtStart = entry.activeThread;
+  let appliedThread;
+  const generation = (entry.threadReadGeneration || 0) + 1;
+  entry.threadReadGeneration = generation;
+  entry.requestedThreadId = threadId2;
+  entry.threadRead = {
+    threadId: threadId2,
+    loading: !poll,
+    error: entry.threadRead?.threadId === threadId2 ? entry.threadRead.error : ""
+  };
+  const current = () => entry.agent === agent && entry.subscription === subscription && entry.selectionGeneration === selection && entry.threadReadGeneration === generation && entry.requestedThreadId === threadId2 && (entry.activeThread === activeAtStart || appliedThread && entry.activeThread === appliedThread);
+  const publish = () => {
+    if (entry.clients) broadcast(entry, "state", snapshot(entry));
+  };
+  publish();
+  try {
+    const detail = await readThread(agent, subscription, threadId2, entry);
+    if (!current()) return null;
+    if (threadId(detail) !== threadId2) throw new Error("The agent returned a different thread; its status was not applied.");
+    const thread = retainInitialThreadPrompt(projectCanvasThread(detail, agent.external), entry.activeThread);
+    appliedThread = thread;
+    entry.activeThread = thread;
+    entry.threads = upsertThread(entry.threads, thread);
+    entry.threadRead = { threadId: threadId2, loading: false, error: "" };
+    if (focus) {
+      entry.focusedThreadId = threadId(thread);
+      entry.focusedThreadTitle = thread.title || threadId2;
+    }
+    return thread;
+  } catch (error) {
+    if (!current()) return null;
+    entry.threadRead = { threadId: threadId2, loading: false, error: shortError2(error) };
+    throw error;
+  } finally {
+    if (current()) publish();
+  }
 }
 function agentContextKey(agent) {
   return String(agent?.id || `${agent?.resourceGroup || ""}/${agent?.name || ""}`).toLowerCase();
@@ -4425,10 +4557,21 @@ async function selectAgent(entry, agentRow, options = {}) {
     threads,
     activeThread: changingAgent ? null : activeThreadAtStart
   };
-  await activateDefaultThread(
-    hydrated,
-    (threadId2) => (options.getThreadImpl || getThread)(selectedAgent, subscription, threadId2, entry)
-  );
+  const activeId = threadId(hydrated.activeThread);
+  if (activeId && threads.some((thread) => threadId(thread) === activeId)) {
+    try {
+      hydrated.activeThread = await (options.getThreadImpl || getThread)(selectedAgent, subscription, activeId, entry);
+    } catch (error) {
+      if (generation !== entry.selectionGeneration || subscriptionAtStart !== entry.subscription || entry.activeThread !== activeThreadAtStart) return false;
+      entry.threadRead = { threadId: activeId, loading: false, error: shortError2(error) };
+      throw error;
+    }
+  } else {
+    await activateDefaultThread(
+      hydrated,
+      (threadId2) => (options.getThreadImpl || getThread)(selectedAgent, subscription, threadId2, entry)
+    );
+  }
   if (generation !== entry.selectionGeneration || subscriptionAtStart !== entry.subscription) return false;
   entry.subscription = subscription;
   entry.agent = selectedAgent;
@@ -4440,6 +4583,8 @@ async function selectAgent(entry, agentRow, options = {}) {
     entry.threads = upsertThread(entry.threads, entry.activeThread);
   } else {
     entry.activeThread = hydrated.activeThread;
+    entry.threadRead = null;
+    entry.requestedThreadId = threadId(entry.activeThread);
   }
   entry.incidents = incidentsResult.incidents;
   entry.incidentsError = incidentLoad.accessError;
@@ -4697,33 +4842,13 @@ data: ${JSON.stringify(snapshot(entry))}
       return { threads: await listThreads(entry.agent, entry.subscription, entry, { filter }) };
     },
     "/open-thread": async () => withBusy(entry, body.poll ? "" : "Loading thread...", async () => {
-      const thread = await getThread(
-        entry.agent,
-        entry.subscription,
-        body.threadId,
-        entry,
-        { projectDetail: (detail) => projectCanvasThread(detail, entry.agent.external) }
-      );
-      const activeId = threadId(entry.activeThread);
-      const displayed = retainInitialThreadPrompt(thread, entry.activeThread);
-      if (!body.poll || !activeId || activeId === body.threadId) entry.activeThread = displayed;
-      entry.threads = upsertThread(entry.threads, displayed);
-      if (!body.poll) entry.status = `Loaded thread "${thread.title || body.threadId}".`;
-      return displayed;
+      const thread = await readSelectedThread(entry, { threadId: body.threadId, poll: Boolean(body.poll) });
+      if (thread && !body.poll) entry.status = `Loaded thread "${thread.title || body.threadId}".`;
+      return thread;
     }),
     "/focus-thread": async () => withBusy(entry, "Focusing thread...", async () => {
-      const thread = await getThread(
-        entry.agent,
-        entry.subscription,
-        body.threadId,
-        entry,
-        { projectDetail: (detail) => projectCanvasThread(detail, entry.agent.external) }
-      );
-      entry.activeThread = thread;
-      entry.threads = upsertThread(entry.threads, thread);
-      entry.focusedThreadId = threadId(thread);
-      entry.focusedThreadTitle = thread.title || entry.focusedThreadId;
-      entry.status = `Focused on "${entry.focusedThreadTitle}". Host-chat follow-ups now default to this thread.`;
+      const thread = await readSelectedThread(entry, { threadId: body.threadId, focus: true });
+      if (thread) entry.status = `Focused on "${entry.focusedThreadTitle}". Host-chat follow-ups now default to this thread.`;
       return thread;
     }),
     "/unfocus-thread": async () => {
@@ -5141,9 +5266,8 @@ var canvas = createCanvas({
         const entry = ensureEntry(instanceId);
         if (!entry.agent) return { ok: false, message: "Select an SRE Agent first." };
         if (!input?.threadId) return { ok: false, message: "get_thread needs a threadId." };
-        const thread = await getThread(entry.agent, entry.subscription, input.threadId, entry, { strict: true });
-        entry.activeThread = thread;
-        entry.threads = upsertThread(entry.threads, thread);
+        const thread = await readSelectedThread(entry, { threadId: input.threadId });
+        if (!thread) throw new Error("Thread selection changed; the old response was discarded.");
         broadcast(entry, "state", snapshot(entry));
         return { ok: true, thread: projectThreadDetail(thread) };
       }
@@ -5154,13 +5278,10 @@ var canvas = createCanvas({
         const entry = ensureEntry(instanceId);
         if (!entry.agent) return { ok: false, message: "Select an SRE Agent first." };
         if (!input?.threadId) return { ok: false, message: "focus_thread needs a threadId." };
-        const thread = await getThread(entry.agent, entry.subscription, input.threadId, entry, { strict: true });
+        const thread = await readSelectedThread(entry, { threadId: input.threadId, focus: true });
+        if (!thread) throw new Error("Thread selection changed; the old response was discarded.");
         const focusedId = threadId(thread);
         const title = thread.title || focusedId;
-        entry.activeThread = thread;
-        entry.threads = upsertThread(entry.threads, thread);
-        entry.focusedThreadId = focusedId;
-        entry.focusedThreadTitle = title;
         entry.status = `Focused on "${title}".`;
         broadcast(entry, "state", snapshot(entry));
         return { ok: true, focused: true, threadId: focusedId, title, thread: projectThreadDetail(thread), contract: FOCUS_CONTRACT };
@@ -5523,7 +5644,7 @@ Revision: ${STUDIO_REVISION}
   }
   body {
     background: var(--bg);
-    color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 1rem;
+    color: var(--ink); font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); padding: 1rem;
     min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
   }
   #main-grid, #threads-page, .threads-layout { flex: 1; min-height: 0; }
@@ -5684,7 +5805,7 @@ Revision: ${STUDIO_REVISION}
   .typing-dots span:nth-child(2) { animation-delay: .15s; }
   .typing-dots span:nth-child(3) { animation-delay: .3s; }
   /* Chat transcript, styled after the SRE Agent portal's own thread view. */
-  .chat-log { background: var(--thread-surface); border: 1px solid var(--line); border-radius: 8px; padding: .8rem; flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .6rem; }
+  .chat-log { background: var(--thread-surface); border: 1px solid var(--line); border-radius: 8px; padding: .8rem; flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .6rem; font-size: var(--canvas-body, 14px); line-height: var(--leading-body-medium, 20px); font-weight: 400; }
   .threads-layout { display: grid; grid-template-columns: minmax(240px, .85fr) minmax(0, 2fr); gap: .75rem; align-items: stretch; }
   .thread-master { min-width: 0; }
   .thread-master > summary { cursor: pointer; color: var(--ink); font-size: .82rem; font-weight: 400; list-style: none; display: flex; align-items: center; gap: .5rem; }
@@ -5716,9 +5837,9 @@ Revision: ${STUDIO_REVISION}
     .product-mark { forced-color-adjust: none; }
     .thread-master .row-item.active, .agent-option[aria-current="true"] { border-color: Highlight; outline: 2px solid Highlight; }
   }
-  .chat-msg { display: flex; flex-direction: column; gap: .3rem; }
-  .chat-msg .who { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-  .chat-bubble { border-radius: 10px; padding: .55rem .7rem; font-size: .84rem; line-height: 1.4; }
+  .chat-msg { display: flex; flex-direction: column; gap: .3rem; min-width: 0; overflow-wrap: anywhere; }
+  .chat-msg .who { font-size: var(--canvas-small, 12px); font-weight: 400; color: var(--muted); }
+  .chat-bubble { border-radius: 10px; padding: .55rem .7rem; min-width: 0; }
   .chat-msg.user .chat-bubble { background: var(--user-bubble); align-self: flex-end; max-width: 85%; }
   .chat-msg.agent .chat-bubble { background: var(--bg); border: 1px solid var(--line); max-width: 92%; }
   .chat-msg.user { align-items: flex-end; }
@@ -5731,31 +5852,33 @@ Revision: ${STUDIO_REVISION}
   .chat-bubble h3 { font-size: .9rem; }
   .chat-bubble ul { margin: 0 0 .5rem 1.1rem; padding: 0; }
   .chat-bubble li { margin: .1rem 0; }
-  .chat-bubble code { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; background: var(--panel); border-radius: 4px; padding: 1px 5px; font-size: .82em; }
-  .chat-bubble table { border-collapse: collapse; width: 100%; margin: .3rem 0 .6rem; font-size: .8rem; }
+  .chat-bubble code { font-family: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", monospace); background: var(--panel); border-radius: 4px; padding: 1px 5px; font-size: var(--text-code-inline, 12px); }
+  .chat-bubble table { border-collapse: collapse; width: 100%; margin: .3rem 0 .6rem; font-size: inherit; table-layout: fixed; }
   .chat-bubble table th, .chat-bubble table td { border: 1px solid var(--line); padding: .3rem .5rem; text-align: left; vertical-align: top; }
   .chat-bubble table th { background: var(--panel); color: var(--muted); font-weight: 600; }
   .chat-bubble table tr:nth-child(even) td { background: var(--thread-surface); }
-  .tool-card { border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; background: var(--bg); font-size: .78rem; }
-  .tool-card .tool-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .35rem; }
-  .tool-card .tool-title { font-weight: 600; }
-  .tool-badge { font-size: .64rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-  .tool-badge.safe { color: var(--ok); border-color: #bfe9d6; background: #e4f7ef; }
-  .tool-badge.risk { color: var(--warn); border-color: #f2ddb0; background: #fdf0d8; }
+  .tool-card { border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; background: var(--panel); min-width: 0; }
+  .tool-card .tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .35rem; }
+  .tool-card .tool-title { min-width: 0; font-weight: var(--font-weight-semibold, 600); }
+  .tool-badge { font-size: var(--canvas-small, 12px); font-weight: 400; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .tool-badge.safe { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); background: color-mix(in srgb, var(--ok) 5%, var(--bg)); }
+  .tool-badge.risk { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 30%, var(--line)); background: color-mix(in srgb, var(--warn) 5%, var(--bg)); }
   .tool-badge.done { color: var(--muted); }
-  .tool-cmd { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; background: var(--thread-surface); border-radius: 6px; word-break: break-all; }
-  .tool-cmd pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+  .tool-cmd { font-family: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", monospace); background: var(--thread-surface); border-radius: 6px; word-break: break-all; }
+  .tool-cmd pre { margin: 0; font-family: inherit; white-space: pre-wrap; word-break: break-all; }
   .tool-output { margin-top: .35rem; color: var(--muted); white-space: pre-wrap; max-height: 160px; overflow-y: auto; }
   .mcp-run-card > .tool-output { max-height: none; overflow: visible; white-space: normal; }
+  .mcp-run-card .automation-table { font-size: inherit; }
   .scheduled-run-context { border: 1px solid var(--line); border-radius: 8px; padding: .75rem; }
-  .scheduled-run-context h3 { margin: 0 0 .4rem; font-size: .95rem; overflow-wrap: anywhere; }
+  .scheduled-run-context h3 { margin: 0 0 .4rem; font-size: inherit; line-height: inherit; font-weight: var(--font-weight-semibold, 600); overflow-wrap: anywhere; }
   .scheduled-run-context p { margin: .4rem 0; }
   .scheduled-run-instructions > summary { cursor: pointer; color: var(--accent); margin-top: .5rem; }
+  .chat-msg .scheduled-run-instructions .chat-bubble { padding: .5rem 0 0; max-width: 100%; background: transparent; border: 0; }
   #status[hidden] { display: none; }
   .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .copy-cmd { font-size: .68rem; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
-  .tool-auth-notice { margin-top: .45rem; padding: .5rem .6rem; background: var(--thread-surface); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: .76rem; }
+  .tool-auth-notice { margin-top: .45rem; padding: .5rem .6rem; background: var(--thread-surface); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
   .tool-auth-actions { margin-top: .5rem; display: flex; gap: .5rem; }
   .tool-auth-actions .btn { padding: .35rem .9rem; font-size: .78rem; }
   .footer-meta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
@@ -5932,6 +6055,7 @@ Revision: ${STUDIO_REVISION}
             <h2>Active thread</h2>
           </div>
           <div id="thread-focus-strip" class="thread-focus-strip" hidden><div class="thread-focus-copy"><button type="button" id="focus-badge" class="focus-badge" title="Open the focused thread" hidden></button><span>Host-chat follow-ups default to this thread.</span></div><button type="button" id="clear-thread-focus" class="btn ghost mini">Clear focus</button></div>
+          <div id="thread-activity" class="hint" role="status" aria-live="polite" hidden></div>
           <div id="thread-log" class="chat-log" aria-live="polite">No thread selected.</div>
           <textarea id="reply-msg" aria-label="Thread message" placeholder="Ask the SRE Agent for a diagnosis or reply to the selected thread..."></textarea>
           <div id="reply-completion" class="completion-menu" hidden></div>
@@ -6564,6 +6688,8 @@ Revision: ${STUDIO_REVISION}
   // object instead, which used to render as literal "[object Object]" next to
   // every thread. Pull a sensible string out of either shape.
   function threadStatusLabel(t) {
+    var currentActivity = threadActivity(t);
+    if (currentActivity.label) return currentActivity.label;
     var s = t && t.status;
     if (s == null) return '';
     if (typeof s === 'string') return s;
@@ -6585,8 +6711,17 @@ Revision: ${STUDIO_REVISION}
   }
   function threadNeedsAttention(thread) {
     var actions = thread && thread.status && typeof thread.status === 'object' && thread.status.actionsStatus;
-    return Boolean(actions && (actions.hasCriticalActions || actions.hasWarningActions)) ||
+    return threadActivity(thread).state.startsWith('waiting-') ||
+      Boolean(actions && (actions.hasCriticalActions || actions.hasWarningActions)) ||
       /^(action needed|warning|pendingauthorization|waitingforuser|waiting for user)$/i.test(threadStatusLabel(thread));
+  }
+  function threadActivity(thread) {
+    var read = state && state.threadRead;
+    if (read && read.threadId === threadId(thread)) {
+      if (read.error) return { state: 'unavailable', label: 'Status unavailable' };
+      if (read.loading) return { state: 'loading', label: 'Loading thread...' };
+    }
+    return deriveThreadActivity(thread);
   }
   function renderRowList(el, items, labelFn, onClick, activeId) {
     var focusedId = el.contains(document.activeElement) && document.activeElement.getAttribute('data-item-id');
@@ -6744,6 +6879,9 @@ Revision: ${STUDIO_REVISION}
 
     var shownThreads = threadSearch.open && threadSearch.busy ? []
       : threadSearch.open && threadSearch.results !== null ? threadSearch.results : s.threads || [];
+    shownThreads = shownThreads.map(function (thread) {
+      return threadId(thread) === threadId(s.activeThread) ? Object.assign({}, thread, s.activeThread) : thread;
+    });
     var filter = document.getElementById('thread-filter').value;
     var typeFilter = document.getElementById('thread-type-filter').value;
     var loadedCount = shownThreads.length;
@@ -6773,7 +6911,13 @@ Revision: ${STUDIO_REVISION}
     }
 
     var log = document.getElementById('thread-log');
-    var transcriptKey = transcriptRenderKey(activeThread);
+    var currentActivity = threadActivity(activeThread);
+    var activityNotice = document.getElementById('thread-activity');
+    activityNotice.textContent = currentActivity.label;
+    activityNotice.hidden = !currentActivity.label;
+    activityNotice.title = s.threadRead && s.threadRead.threadId === threadId(activeThread) ? s.threadRead.error || '' : '';
+    activityNotice.className = currentActivity.state === 'unavailable' || currentActivity.state === 'failed' ? 'status err' : 'hint';
+    var transcriptKey = transcriptRenderKey(activeThread) + '|' + currentActivity.state;
     if (transcriptKey !== lastTranscriptKey) {
       renderChatLog(log, activeThread);
       lastTranscriptKey = transcriptKey;
@@ -6788,7 +6932,9 @@ Revision: ${STUDIO_REVISION}
       automationReturnState.agentKey !== automationApi.automationAgentKey(s.agent, s.subscription);
     var focusBadge = document.getElementById('focus-badge');
     focusBadge.hidden = !s.focusedThreadId;
-    focusBadge.textContent = s.focusedThreadId ? 'Focused: ' + (s.focusedThreadTitle || s.focusedThreadId) : '';
+    var focusedThread = focusedHere ? activeThread : (s.threads || []).find(function (thread) { return threadId(thread) === s.focusedThreadId; });
+    var focusActivity = focusedThread && threadActivity(focusedThread).label;
+    focusBadge.textContent = s.focusedThreadId ? 'Focused: ' + (s.focusedThreadTitle || s.focusedThreadId) + (focusActivity ? ' \xB7 ' + focusActivity : '') : '';
     document.getElementById('thread-focus-strip').hidden = !s.focusedThreadId;
     document.getElementById('clear-thread-focus').disabled = Boolean(s.busy);
 
@@ -6965,6 +7111,9 @@ Revision: ${STUDIO_REVISION}
     var footer = document.querySelector('.footer-meta');
     var reserved = footer.getBoundingClientRect().height + 48;
     panel.style.height = Math.max(420, window.innerHeight - panel.getBoundingClientRect().top - reserved) + 'px';
+    // Narrow layouts stack the toolbar; grow so fixed controls never overflow onto the footer.
+    var overflow = panel.scrollHeight - panel.clientHeight;
+    if (overflow > 0) panel.style.height = (parseFloat(panel.style.height) + overflow) + 'px';
   }
 
   function incidentStatusLabel(label, count) {
@@ -7136,27 +7285,14 @@ Revision: ${STUDIO_REVISION}
     postJson('/open-thread', { threadId: threadId });
   }
 
-  // Poll the active thread while it looks like the agent is still working -
-  // either an az/kubectl/psql/approval execution is in-flight, OR the thread's
-  // message count / last-message id has changed since our last poll (the agent
-  // is still writing turns of plain reasoning/text with no tool-execution card
-  // at all, which used to make the UI freeze on the very first snapshot even
-  // though the agent kept going for minutes). Stop once two consecutive polls
-  // see no growth and nothing in-flight.
-  var IN_FLIGHT_STATUSES = ['running', 'pending', 'pendingauthorization', 'queued', 'inprogress'];
+  // Continue observing blocked and quiet threads at a slower cadence so a gate
+  // cleared elsewhere is discovered, without presenting that read as agent work.
   var threadPollTimer = null;
   var threadPollId = null;
   var threadPollLastKey = null;
   var threadPollStaleCount = 0;
   function threadHasInFlightWork(thread) {
-    if (!thread) return false;
-    var msgs = thread.messages || [];
-    for (var i = 0; i < msgs.length; i++) {
-      var m = msgs[i];
-      var exec = m.azCliExecution || m.kubectlExecution || m.psqlExecution || m.approval;
-      if (exec && exec.status && IN_FLIGHT_STATUSES.indexOf(String(exec.status).toLowerCase()) !== -1) return true;
-    }
-    return false;
+    return threadActivity(thread).state === 'running';
   }
   function threadProgressKey(thread) {
     var msgs = (thread && thread.messages) || [];
@@ -7577,43 +7713,24 @@ Revision: ${STUDIO_REVISION}
     if (Array.isArray(raw)) return raw.join(', ');
     return String(raw || '');
   }
-  function toolBadge(exec) {
-    var status = String(exec.status || '').toLowerCase();
-    if (status.indexOf('pendingauthorization') !== -1) {
-      return '<span class="tool-badge risk">Needs permission</span>';
-    }
-    if (status.indexOf('pending') !== -1 || status === 'running') {
-      return '<span class="tool-badge risk">Running&hellip;</span>';
-    }
-    if (status.indexOf('complete') !== -1 || status === 'completed') {
-      return '<span class="tool-badge done">Completed</span>';
-    }
-    if (status === 'failed') {
-      return '<span class="tool-badge risk">Failed</span>';
-    }
-    if (status === 'cancelled') {
-      return '<span class="tool-badge done">Cancelled</span>';
-    }
-    var scopes = scopesText(exec).toLowerCase();
-    if (/write|delete|update|restart|scale|set|apply/.test(scopes) || /--set|restart|delete|scale|update/.test(exec.command || '')) {
-      return '<span class="tool-badge risk">Medium risk</span>';
-    }
-    return '<span class="tool-badge safe">Safe</span>';
+  function toolBadge(exec, kind) {
+    var currentActivity = executionActivity(exec, kind);
+    var style = ['running', 'waiting-permission', 'waiting-approval', 'failed', 'unknown'].includes(currentActivity.state) ? 'risk' : 'done';
+    return '<span class="tool-badge ' + style + '">' + escapeHtml(currentActivity.label) + '</span>';
   }
   // Mirrors the real SRE Agent portal: when the agent's managed identity is denied by RBAC
   // (status === PendingAuthorization), it shows a "Grant permissions" notice/button that
   // re-runs the same command on-behalf-of the signed-in user instead of the agent identity.
   function renderToolCard(field, exec, threadId) {
-    var status = String(exec.status || '').toLowerCase();
-    var pending = status.indexOf('pending') !== -1;
-    var needsAuth = status.indexOf('pendingauthorization') !== -1;
+    var currentActivity = executionActivity(exec, field.key);
+    var needsAuth = currentActivity.state === 'waiting-permission';
     var scopes = scopesText(exec);
     var boundedCommand = truncateTranscriptText(exec.command, MAX_COMMAND_CHARS);
     return '<div class="tool-card">' +
       '<div class="tool-head">' +
         '<span class="tool-title">' + escapeHtml(exec.description || field.label) + '</span>' +
-        toolBadge(exec) +
-        (pending && !needsAuth ? '<span class="spinner"></span>' : '') +
+        toolBadge(exec, field.key) +
+        (currentActivity.state === 'running' && threadHasInFlightWork(state.activeThread) ? '<span class="spinner" aria-hidden="true"></span>' : '') +
       '</div>' +
       (exec.command ? '<div class="tool-cmd canvas-code-block"><button class="copy-cmd canvas-code-block-copy" data-cmd="' + escapeHtml(boundedCommand).replace(/"/g, '&quot;') + '" aria-label="Copy command" aria-live="polite">Copy</button><pre>' + escapeHtml(boundedCommand) + '</pre></div>' : '') +
       (needsAuth ? (
@@ -7777,6 +7894,11 @@ Revision: ${STUDIO_REVISION}
       var exec = m[field.key];
       if (exec) parts.push(renderToolCard(field, exec, threadId));
     });
+    if (m.approval) parts.push('<section class="tool-card approval-card" aria-label="Approval request"><div class="tool-head">' +
+      '<span class="tool-title">Approval request</span>' + toolBadge(m.approval, 'approval') + '</div>' +
+      (m.approval.description ? '<p>' + escapeHtml(truncateTranscriptText(m.approval.description, MAX_ERROR_CHARS)) + '</p>' : '') +
+      (executionActivity(m.approval, 'approval').state === 'waiting-approval'
+        ? '<p class="hint">User action required. Review this approval in the SRE Agent Portal.</p>' : '') + '</section>');
     if (m.mcpToolExecution) parts.push(renderMcpRunCard(m.mcpToolExecution));
     if (m.executionPreviewOmitted) parts.push('<p class="hint">Tool result preview omitted to keep this conversation bounded. Open the full run in Portal.</p>');
     if (!parts.length) parts.push('<div class="chat-bubble">' + escapeHtml(truncateTranscriptText(JSON.stringify(m), MAX_ERROR_CHARS)) + '</div>');
@@ -7809,16 +7931,7 @@ Revision: ${STUDIO_REVISION}
       '</div></details>';
   }
   function threadIsAwaitingAgent(thread) {
-    // Show a "thinking" indicator whenever the agent still owes the user a
-    // reply: either there's an in-flight tool execution, or the most recent
-    // message in the thread is from the user (i.e. no agent turn yet).
-    if (!thread) return false;
-    if (threadHasInFlightWork(thread)) return true;
-    var msgs = thread.messages || thread.value || [];
-    if (!msgs.length) return false;
-    var last = msgs[msgs.length - 1];
-    var role = (last.author && last.author.role) || last.role || '';
-    return String(role).toLowerCase() === 'user';
+    return threadHasInFlightWork(thread);
   }
   var TYPING_INDICATOR_HTML = '<div class="chat-msg agent"><span class="who">SRE Agent</span>' +
     '<div class="chat-bubble typing-dots"><span></span><span></span><span></span></div></div>';
@@ -8489,6 +8602,7 @@ export {
   projectIncident,
   projectIncidentCounts,
   readFavorites,
+  readSelectedThread,
   refreshAutomationCollections,
   refreshHttpTriggers,
   refreshScheduledTasks,
