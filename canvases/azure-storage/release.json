@@ -1,43 +1,45 @@
 {
   "schemaVersion": 2,
   "format": "plugin",
-  "name": "azure-storage-canvas",
-  "version": "0.1.1",
+  "name": "azure-storage",
+  "version": "0.3.0",
   "mutableDocumentation": true,
   "publicationRepository": "microsoft/azure-dev-tools",
   "plugin": {
     "manifest": ".github/plugin/plugin.json",
     "extension": {
-      "name": "azure-storage-canvas",
-      "canvasId": "azure-storage-canvas",
-      "directory": "com.github.copilot/extensions/azure-storage-canvas",
-      "entry": "com.github.copilot/extensions/azure-storage-canvas/extension.mjs"
+      "name": "azure-storage",
+      "canvasId": "azure-storage",
+      "directory": "com.github.copilot/extensions/azure-storage",
+      "entry": "com.github.copilot/extensions/azure-storage/extension.mjs"
     },
     "preview": {
       "file": "assets/preview.png"
     },
     "skills": [
       {
-        "name": "azure-storage-canvas",
-        "directory": "skills/azure-storage-canvas",
+        "name": "azure-storage",
+        "directory": "skills/azure-storage",
         "files": [
           "SKILL.md"
         ]
       }
     ]
   },
+  "runtimeIdentity": "com.github.copilot/extensions/azure-storage/studio-package.json",
   "files": [
     ".github/plugin/plugin.json",
     "THIRD_PARTY_NOTICES.txt",
     "assets/preview.png",
-    "com.github.copilot/extensions/azure-storage-canvas/extension.mjs",
-    "com.github.copilot/extensions/azure-storage-canvas/sdk/blob.mjs",
-    "com.github.copilot/extensions/azure-storage-canvas/sdk/file.mjs",
-    "com.github.copilot/extensions/azure-storage-canvas/sdk/identity.mjs",
-    "com.github.copilot/extensions/azure-storage-canvas/sdk/queue.mjs",
-    "com.github.copilot/extensions/azure-storage-canvas/sdk/tables.mjs",
+    "com.github.copilot/extensions/azure-storage/extension.mjs",
+    "com.github.copilot/extensions/azure-storage/sdk/blob.mjs",
+    "com.github.copilot/extensions/azure-storage/sdk/file.mjs",
+    "com.github.copilot/extensions/azure-storage/sdk/identity.mjs",
+    "com.github.copilot/extensions/azure-storage/sdk/queue.mjs",
+    "com.github.copilot/extensions/azure-storage/sdk/tables.mjs",
+    "com.github.copilot/extensions/azure-storage/studio-package.json",
     "package.json",
-    "skills/azure-storage-canvas/SKILL.md"
+    "skills/azure-storage/SKILL.md"
   ],
   "status": "publication-controlled-by-external-approval",
   "runtime": {
@@ -47,8 +49,8 @@
   },
   "build": {
     "esbuild": "0.25.12",
-    "lockSha256": "7c3d54cd9faaca203b95b626c07893128e5b384a446360f9e4962700b5376160",
-    "inputSha256": "3c296253d40e9d5a94f2f0fd28d855a42040fd5186359122aba9059c57740dda"
+    "lockSha256": "45c8ab04053992765129382fdb4fa2fab86666fcbb1303f59032d6eb39b8edaa",
+    "inputSha256": "06b977f1268eebbc7e41b7a4a570c0530c44beae82601fb3689a3dfe2499aa7b"
   },
   "dependencies": [
     {
@@ -150,6 +152,11 @@
       "name": "@azure/storage-queue",
       "version": "12.32.0",
       "license": "MIT"
+    },
+    {
+      "name": "@cloud-foundation/studio-runtime",
+      "version": "0.1.0",
+      "license": null
     },
     {
       "name": "@typespec/ts-http-runtime",
@@ -324,27 +331,27 @@
   ],
   "modules": [
     {
-      "file": "com.github.copilot/extensions/azure-storage-canvas/extension.mjs",
+      "file": "com.github.copilot/extensions/azure-storage/extension.mjs",
       "platform": "node"
     },
     {
-      "file": "com.github.copilot/extensions/azure-storage-canvas/sdk/blob.mjs",
+      "file": "com.github.copilot/extensions/azure-storage/sdk/blob.mjs",
       "platform": "node"
     },
     {
-      "file": "com.github.copilot/extensions/azure-storage-canvas/sdk/file.mjs",
+      "file": "com.github.copilot/extensions/azure-storage/sdk/file.mjs",
       "platform": "node"
     },
     {
-      "file": "com.github.copilot/extensions/azure-storage-canvas/sdk/identity.mjs",
+      "file": "com.github.copilot/extensions/azure-storage/sdk/identity.mjs",
       "platform": "node"
     },
     {
-      "file": "com.github.copilot/extensions/azure-storage-canvas/sdk/queue.mjs",
+      "file": "com.github.copilot/extensions/azure-storage/sdk/queue.mjs",
       "platform": "node"
     },
     {
-      "file": "com.github.copilot/extensions/azure-storage-canvas/sdk/tables.mjs",
+      "file": "com.github.copilot/extensions/azure-storage/sdk/tables.mjs",
       "platform": "node"
     }
   ],
