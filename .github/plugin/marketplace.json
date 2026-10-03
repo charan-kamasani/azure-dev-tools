@@ -39,10 +39,10 @@
       "source": "canvases/azure-sre-agent"
     },
     {
-      "name": "azure-storage-canvas",
-      "description": "Azure Storage canvas \u2014 browse blobs and containers, bulk transfer with live progress, filter with aggregate statistics, mint and open SAS links, preview blobs, and plan account to account copies, all agent-drivable on one live surface.",
-      "version": "0.1.1",
-      "source": "canvases/azure-storage-canvas"
+      "name": "azure-storage",
+      "description": "Azure Storage canvas — browse blobs and containers, bulk transfer with live progress, filter with aggregate statistics, mint and open SAS links, preview blobs, and plan account to account copies, all agent-drivable on one live surface.",
+      "version": "0.3.0",
+      "source": "canvases/azure-storage"
     }
   ]
 }

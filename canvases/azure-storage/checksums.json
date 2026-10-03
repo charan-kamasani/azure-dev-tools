@@ -1,0 +1,15 @@
+{
+  ".github/plugin/plugin.json": "c8b84a02d3954378dff3b3a90e3444c71cda4ec09b6037f1d9a4388e0fc5ac8a",
+  "assets/preview.png": "5fb6a9018aecd7aede2a8937f78d81867bf00c5550f30ab071d158b3852ccaca",
+  "com.github.copilot/extensions/azure-storage/extension.mjs": "1352b0a2e44313483df3622b0e8df403038a1e54995137ca3cf1ca8ddfcf6274",
+  "com.github.copilot/extensions/azure-storage/sdk/blob.mjs": "f7d102239138f46038f9fbbc576d6a34e2f03370f27c282dc7b59dbe470f791d",
+  "com.github.copilot/extensions/azure-storage/sdk/file.mjs": "88d23b0a1a226385486aade505b086c7bf524ef0bd5b031bac4df0351e8a20f6",
+  "com.github.copilot/extensions/azure-storage/sdk/identity.mjs": "fa0526b9488b0e797bfa79044b632edb53483e9e2dc12fe672d093bfb9ace670",
+  "com.github.copilot/extensions/azure-storage/sdk/queue.mjs": "6553c36dad97992722dd5d1320889ec09038847c31f2a04cf8756930f725c169",
+  "com.github.copilot/extensions/azure-storage/sdk/tables.mjs": "cf4b43961f200d9d73f1158aa28b628863274d33e66f53457afa7f6a16562202",
+  "com.github.copilot/extensions/azure-storage/studio-package.json": "469f95fb802bf3811935ee552234b42ec1f5bf14dfa9fafafc8ff512bdfd3789",
+  "package.json": "4bf8866501ff3a135f4d5c1cb4b7f28a54c431ec54061bffdb1dcfca878ed2c5",
+  "release.json": "afff90d7859f3bf801926ca5907c897f36166a437c1948ac4aa6d32bf8381e30",
+  "skills/azure-storage/SKILL.md": "0dd923a312795d762d9853a0e0f715d1aed49e281604b635cfe4ada995131c12",
+  "THIRD_PARTY_NOTICES.txt": "a813071223c79d70046ffde6cd6de1d52eecf7b7b3ce174a3e1bcb2c2ebb283d"
+}

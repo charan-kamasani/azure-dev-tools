@@ -1,9 +1,9 @@
 {
-  "name": "azure-storage-canvas",
-  "version": "0.1.1",
+  "name": "azure-storage",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "main": "com.github.copilot/extensions/azure-storage-canvas/extension.mjs",
+  "main": "com.github.copilot/extensions/azure-storage/extension.mjs",
   "engines": {
     "node": ">=22"
   },
